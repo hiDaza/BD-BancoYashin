@@ -1,3 +1,4 @@
+com/mycompany/yashin/model/CompraFatura.class
 controller/BancoController.class
 external/BureauInterface$BureauData.class
 com/mycompany/yashin/model/enums/StatusLoteItem.class
@@ -9,6 +10,7 @@ UI/TelaLogin$1.class
 com/mycompany/yashin/model/CartaoCredito.class
 Service/EmprestimoService.class
 com/mycompany/yashin/model/enums/StatusEmprestimo.class
+UI/TelaPrincipal$6.class
 com/mycompany/yashin/model/EmprestimoSolicitacao.class
 UI/TelaPrincipal$3.class
 com/mycompany/yashin/model/Conta.class
@@ -26,6 +28,7 @@ dao/ClienteDAO.class
 com/mycompany/yashin/model/enums/StatusConta.class
 com/mycompany/yashin/model/Transacao.class
 UI/TelaPrincipal$2.class
+UI/TelaPrincipal$5.class
 external/SCRInterface.class
 Service/TransferenciaService.class
 com/mycompany/yashin/model/enums/StatusBoleto.class
@@ -33,6 +36,7 @@ Service/NotificacaoService.class
 Service/AutenticacaoService.class
 com/mycompany/yashin/model/PreferenciaAlertas.class
 UI/TelaPrincipal.class
+dao/CompraFaturaDAO.class
 util/ConexaoBD.class
 dao/ContaDAO.class
 util/LogUtil.class
@@ -51,12 +55,14 @@ controller/Sessao.class
 external/SPIInterface.class
 Service/BoletoService.class
 util/ValidadorUtil.class
+UI/TelaPrincipal$8.class
 Service/PagamentoLoteService$ItemLote.class
 external/BureauInterface.class
 external/STRInterface.class
 Service/PagamentoService.class
 UI/TelaLogin.class
 controller/ConsoleController.class
+UI/TelaPrincipal$7.class
 util/CatalogoBancos$BancoInfo.class
 com/mycompany/yashin/model/PagamentoLote.class
 com/mycompany/yashin/model/FaturaCartao.class
@@ -67,3 +73,4 @@ com/mycompany/yashin/model/enums/TipoTransacao.class
 Service/ClienteService.class
 com/mycompany/yashin/model/AgendamentoTransferencia.class
 dao/TransacaoDAO.class
+UI/TelaPrincipal$4.class

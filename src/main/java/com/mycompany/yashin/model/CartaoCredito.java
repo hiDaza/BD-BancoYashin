@@ -75,4 +75,12 @@ public class CartaoCredito {
 
     public Integer getIdClientePortador() { return idClientePortador; }
     public void setIdClientePortador(Integer idClientePortador) { this.idClientePortador = idClientePortador; }
+
+
+    @Override
+    public String toString() {
+        return numeroCartao + " - " + bandeira + " (Limite: R$" + limiteTotal + ")";
+    }
+    
+
 }

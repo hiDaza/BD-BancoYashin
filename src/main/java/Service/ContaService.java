@@ -8,12 +8,15 @@ package Service;
  *
  * @author daza
  */
+import com.mycompany.yashin.model.Cliente;
 import com.mycompany.yashin.model.Conta;
 import com.mycompany.yashin.model.Transacao;
 import com.mycompany.yashin.model.enums.StatusConta;
+import com.mycompany.yashin.model.enums.TipoConta;
 
 import dao.ContaDAO;
 import dao.TransacaoDAO;
+import dao.ClienteDAO;
 
 import java.math.BigDecimal;
 import java.sql.SQLException;
@@ -25,6 +28,7 @@ import util.LogUtil;
 public class ContaService {
     private ContaDAO contaDAO = new ContaDAO();
     private TransacaoDAO transacaoDAO = new TransacaoDAO();
+    private ClienteDAO clienteDAO = new ClienteDAO();
 
     public String gerarNumeroConta() {
         Random random = new Random();
@@ -75,6 +79,28 @@ public class ContaService {
         conta.setLimiteDiarioPix(limitePix);
         contaDAO.atualizar(conta);
     }
+    
+    
+        public Conta abrirNovaConta(int idCliente, String tipoConta, String agencia) throws Exception {
+        Cliente cliente = clienteDAO.buscarPorId(idCliente);
+        if (cliente == null) throw new Exception("Cliente não encontrado");
+        if (!cliente.isAtivo()) throw new Exception("Cliente inativo");
+
+        Conta conta = new Conta();
+        conta.setIdCliente(idCliente);
+        conta.setTipoConta(TipoConta.valueOf(tipoConta.toUpperCase()));
+        conta.setAgencia(agencia);
+        conta.setNumeroConta(gerarNumeroConta());
+        conta.setStatus(StatusConta.ATIVA);
+        // Saldo inicial aleatório (R$ 100 a R$ 10.000)
+        conta.setSaldo(BigDecimal.valueOf(100 + Math.random() * 9900));
+        contaDAO.inserir(conta);
+
+        LogUtil.registrarLog(idCliente, "ABERTURA_NOVA_CONTA", "Conta criada: " + conta.getNumeroConta());
+        return conta;
+    }   
+    
+    
 
     public Conta buscarPorId(int id) throws SQLException {
         return contaDAO.buscarPorId(id);
@@ -83,5 +109,6 @@ public class ContaService {
     public List<Conta> buscarPorCliente(int idCliente) throws SQLException {
         return contaDAO.listarPorCliente(idCliente);
     }
+    
     
 }

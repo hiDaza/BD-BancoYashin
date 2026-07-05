@@ -9,10 +9,12 @@ package Service;
  * @author daza
  */
 import com.mycompany.yashin.model.CartaoCredito;
+import com.mycompany.yashin.model.CompraFatura;
 import com.mycompany.yashin.model.Conta;
 import com.mycompany.yashin.model.FaturaCartao;
 
 import dao.CartaoDAO;
+import dao.CompraFaturaDAO;
 import dao.ContaDAO;
 import dao.FaturaDAO;
 
@@ -123,4 +125,52 @@ public class CartaoService {
         cartaoDAO.atualizar(cartao);
         LogUtil.registrarLog(null, "CARTAO_DESBLOQUEADO", "Cartão: " + cartao.getNumeroCartao());
     }
+    
+    
+    public void registrarCompra(int idCartao, BigDecimal valor, String descricao, int parcelas) throws Exception {
+        CartaoCredito cartao = cartaoDAO.buscarPorId(idCartao);
+        if (cartao == null) throw new Exception("Cartão não encontrado");
+        if (!"ATIVO".equals(cartao.getStatus())) throw new Exception("Cartão inativo");
+
+        BigDecimal novoLimiteUtilizado = cartao.getLimiteUtilizado().add(valor);
+        if (novoLimiteUtilizado.compareTo(cartao.getLimiteTotal()) > 0) {
+            throw new Exception("Limite do cartão excedido");
+        }
+
+        LocalDate mesReferencia = LocalDate.now().withDayOfMonth(1);
+        FaturaCartao fatura = faturaDAO.buscarFaturaAberta(idCartao, mesReferencia);
+        if (fatura == null) {
+            fatura = new FaturaCartao();
+            fatura.setIdCartao(idCartao);
+            fatura.setMesReferencia(mesReferencia);
+            fatura.setValorTotal(BigDecimal.ZERO);
+            fatura.setValorPago(BigDecimal.ZERO);
+            fatura.setDataVencimento(mesReferencia.plusMonths(1).minusDays(1));
+            fatura.setStatus("ABERTA");
+            faturaDAO.inserir(fatura);
+        }
+
+        // Atualizar fatura (total)
+        fatura.setValorTotal(fatura.getValorTotal().add(valor));
+        faturaDAO.atualizar(fatura);
+
+        // Inserir compra na fatura
+        CompraFatura compra = new CompraFatura();
+        compra.setIdFatura(fatura.getIdFatura());
+        compra.setDescricao(descricao);
+        compra.setValor(valor);
+        compra.setDataCompra(LocalDate.now());
+        compra.setParcelas(parcelas > 1 ? parcelas : null); // se 1, não registra parcelamento
+        new CompraFaturaDAO().inserir(compra);
+
+        // Atualizar limite utilizado
+        cartao.setLimiteUtilizado(novoLimiteUtilizado);
+        cartaoDAO.atualizar(cartao);
+
+        LogUtil.registrarLog(null, "COMPRA_CARTAO", "Cartão: " + cartao.getNumeroCartao() + 
+                             " Valor: " + valor + " Parcelas: " + parcelas);
+    }
+    
+    
+    
 }

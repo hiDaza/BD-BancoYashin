@@ -21,7 +21,7 @@ public class EmprestimoDAO {
     public void inserir(EmprestimoSolicitacao solicitacao) throws SQLException {
         String sql = "INSERT INTO emprestimo_solicitacao (id_cliente, valor_solicitado, prazo_meses, finalidade, status, taxa_juros, valor_aprovado, numero_parcelas, valor_parcela, data_aprovacao, id_transacao_credito, motivo_negacao) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)";
         try (Connection conn = ConexaoBD.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+             PreparedStatement ps = conn.prepareStatement(sql, PreparedStatement.RETURN_GENERATED_KEYS)) {
             ps.setInt(1, solicitacao.getIdCliente());
             ps.setBigDecimal(2, solicitacao.getValorSolicitado());
             ps.setInt(3, solicitacao.getPrazoMeses());
@@ -35,15 +35,30 @@ public class EmprestimoDAO {
             ps.setObject(11, solicitacao.getIdTransacaoCredito());
             ps.setString(12, solicitacao.getMotivoNegacao());
             ps.executeUpdate();
-
-            try (ResultSet rs = ps.getGeneratedKeys()) {
+                    // Obter ID via LAST_INSERT_ID (MySQL)
+            try (Statement stmt = conn.createStatement();
+                 ResultSet rs = stmt.executeQuery("SELECT LAST_INSERT_ID()")) {
                 if (rs.next()) {
                     solicitacao.setIdSolicitacao(rs.getInt(1));
                 }
             }
         }
     }
-
+    
+    public int buscarUltimoIdPorCliente(int idCliente) throws SQLException {
+        String sql = "SELECT MAX(id_solicitacao) FROM emprestimo_solicitacao WHERE id_cliente = ?";
+        try (Connection conn = ConexaoBD.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, idCliente);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+            }
+        }
+        return 0;
+    }
+    
     public EmprestimoSolicitacao buscarPorId(int id) throws SQLException {
         String sql = "SELECT * FROM emprestimo_solicitacao WHERE id_solicitacao = ?";
         try (Connection conn = ConexaoBD.getConnection();

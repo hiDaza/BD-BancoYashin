@@ -64,57 +64,73 @@ public class EmprestimoService {
     }
 
     public EmprestimoSolicitacao solicitarEmprestimo(int idCliente, BigDecimal valor, int prazo, String finalidade) throws Exception {
-        // Validação
-        if (valor.compareTo(new BigDecimal("100.00")) < 0 || valor.compareTo(new BigDecimal("100000.00")) > 0) {
-            throw new Exception("Valor deve estar entre R$ 100,00 e R$ 100.000,00");
-        }
-        if (prazo < 6 || prazo > 60) {
-            throw new Exception("Prazo deve estar entre 6 e 60 meses");
-        }
+            // Validação
+            if (valor.compareTo(new BigDecimal("100.00")) < 0 || valor.compareTo(new BigDecimal("100000.00")) > 0) {
+                throw new Exception("Valor deve estar entre R$ 100,00 e R$ 100.000,00");
+            }
+            if (prazo < 6 || prazo > 60) {
+                throw new Exception("Prazo deve estar entre 6 e 60 meses");
+            }
 
-        // Consulta externa (mock)
-        int score = consultarScoreBureau("cpf");
-        BigDecimal comprometimento = consultarRendaComprometidaSCR("cpf");
+            // Consulta externa (mock)
+            int score = consultarScoreBureau("cpf");
+            BigDecimal comprometimento = consultarRendaComprometidaSCR("cpf");
 
-        // Primeiro, calcula os dados da simulação (mesmo que depois seja negado, vamos guardar)
-        BigDecimal taxaBase = new BigDecimal("1.99");
-        BigDecimal juros = taxaBase.divide(new BigDecimal("100"), 4, RoundingMode.HALF_UP);
-        BigDecimal fator = BigDecimal.ONE.add(juros);
-        BigDecimal parcela = valor.multiply(fator.pow(prazo))
-                .divide(new BigDecimal(prazo), 2, RoundingMode.HALF_UP);
+            // Primeiro, calcula os dados da simulação (mesmo que depois seja negado, vamos guardar)
+            BigDecimal taxaBase = new BigDecimal("1.99");
+            BigDecimal juros = taxaBase.divide(new BigDecimal("100"), 4, RoundingMode.HALF_UP);
+            BigDecimal fator = BigDecimal.ONE.add(juros);
+            BigDecimal parcela = valor.multiply(fator.pow(prazo))
+                    .divide(new BigDecimal(prazo), 2, RoundingMode.HALF_UP);
 
-        EmprestimoSolicitacao solicitacao = new EmprestimoSolicitacao(idCliente, valor, prazo, finalidade);
-        solicitacao.setDataSolicitacao(LocalDateTime.now());
-        // Preenche sempre os dados calculados
-        solicitacao.setTaxaJuros(taxaBase);
-        solicitacao.setValorParcela(parcela);
-        solicitacao.setNumeroParcelas(prazo);
-
-        // Regras de negócio
-        if (score >= 700 && comprometimento.compareTo(new BigDecimal("0.30")) < 0) {
-            // APROVADO
-            BigDecimal taxa = calcularTaxa(score);
-            BigDecimal parcelaAprovada = calcularParcela(valor, prazo, taxa);
-            solicitacao.setStatus(StatusEmprestimo.APROVADO);
-            solicitacao.setTaxaJuros(taxa);
-            solicitacao.setValorAprovado(valor);
+            EmprestimoSolicitacao solicitacao = new EmprestimoSolicitacao(idCliente, valor, prazo, finalidade);
+            solicitacao.setDataSolicitacao(LocalDateTime.now());
+            // Preenche sempre os dados calculados
+            solicitacao.setTaxaJuros(taxaBase);
+            solicitacao.setValorParcela(parcela);
             solicitacao.setNumeroParcelas(prazo);
-            solicitacao.setValorParcela(parcelaAprovada);
-            solicitacao.setDataAprovacao(LocalDateTime.now());
-            creditarEmprestimo(idCliente, valor, solicitacao);
-        } else if (score < 400 || comprometimento.compareTo(new BigDecimal("0.50")) > 0) {
-            solicitacao.setStatus(StatusEmprestimo.NEGADO);
-            solicitacao.setMotivoNegacao("Score insuficiente ou comprometimento alto");
-        } else {
-            solicitacao.setStatus(StatusEmprestimo.ANALISE_MANUAL);
-        }
 
-        emprestimoDAO.inserir(solicitacao);
-        LogUtil.registrarLog(idCliente, "SOLICITACAO_EMPRESTIMO", 
-                "Valor: " + valor + " Status: " + solicitacao.getStatus());
-        return solicitacao;
+            // Regras de negócio - APENAS define o status e valores aqui, NÃO executa o crédito ainda
+            if (score >= 700 && comprometimento.compareTo(new BigDecimal("0.30")) < 0) {
+                // APROVADO
+                BigDecimal taxa = calcularTaxa(score);
+                BigDecimal parcelaAprovada = calcularParcela(valor, prazo, taxa);
+                solicitacao.setStatus(StatusEmprestimo.APROVADO);
+                solicitacao.setTaxaJuros(taxa);
+                solicitacao.setValorAprovado(valor);
+                solicitacao.setNumeroParcelas(prazo);
+                solicitacao.setValorParcela(parcelaAprovada);
+                solicitacao.setDataAprovacao(LocalDateTime.now());
+
+                // A LINHA creditarEmprestimo FOI REMOVIDA DAQUI
+
+            } else if (score < 400 || comprometimento.compareTo(new BigDecimal("0.50")) > 0) {
+                solicitacao.setStatus(StatusEmprestimo.NEGADO);
+                solicitacao.setMotivoNegacao("Score insuficiente ou comprometimento alto");
+            } else {
+                solicitacao.setStatus(StatusEmprestimo.NEGADO);
+                solicitacao.setMotivoNegacao("Perfil de crédito não atende aos critérios mínimos");
+            }
+
+           // 1. Primeiro salvamos no banco para GERAR O ID
+           emprestimoDAO.inserir(solicitacao);
+           System.out.println("DEBUG: Solicitação ID após inserção = " + solicitacao.getIdSolicitacao());
+
+           // Fallback caso não tenha retornado a chave
+           if (solicitacao.getIdSolicitacao() == null) {
+               solicitacao.setIdSolicitacao(emprestimoDAO.buscarUltimoIdPorCliente(idCliente));
+           }
+
+           // 2. Agora, com a solicitação salva e com um ID gerado, creditamos o valor se for aprovado
+           if (solicitacao.getStatus() == StatusEmprestimo.APROVADO) {
+               creditarEmprestimo(idCliente, valor, solicitacao);
+           }
+
+           LogUtil.registrarLog(idCliente, "SOLICITACAO_EMPRESTIMO", 
+                    "Valor: " + valor + " Status: " + solicitacao.getStatus());
+           return solicitacao;
     }
-
+    
     private BigDecimal calcularTaxa(int score) {
         if (score >= 900) return new BigDecimal("1.49");
         if (score >= 700) return new BigDecimal("1.99");

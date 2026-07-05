@@ -23,6 +23,7 @@ import com.mycompany.yashin.model.AgendamentoTransferencia;
 import com.mycompany.yashin.model.BoletoEmitido;
 import com.mycompany.yashin.model.CartaoCredito;
 import com.mycompany.yashin.model.Cliente;
+import com.mycompany.yashin.model.CompraFatura;
 import com.mycompany.yashin.model.Conta;
 import com.mycompany.yashin.model.EmprestimoSolicitacao;
 import com.mycompany.yashin.model.FaturaCartao;
@@ -78,6 +79,12 @@ public class BancoController {
     }
 
     // === Conta ===
+    
+    public Conta abrirNovaConta(int idCliente, String tipoConta, String agencia) throws Exception {
+        return contaService.abrirNovaConta(idCliente, tipoConta, agencia);
+    }
+    
+    
     public Conta buscarContaPorId(int id) throws SQLException {
         return contaService.buscarPorId(id);
     }
@@ -232,6 +239,8 @@ public class BancoController {
     public void configurarAlertas(PreferenciaAlertas pref) throws Exception {
         notificacaoService.configurarPreferencias(pref);
     }
+    
+   
 
     public PreferenciaAlertas buscarAlertas(int idCliente) throws SQLException {
         return notificacaoService.buscarPreferencias(idCliente);
@@ -240,4 +249,27 @@ public class BancoController {
     public EmprestimoSolicitacao buscarSolicitacaoPorId(int id) throws SQLException {
         return emprestimoService.buscarSolicitacaoPorId(id);
     }
+    
+    
+    public void pagarComCartao(int idCartao, BigDecimal valor, String descricao, int parcelas) throws Exception {
+        cartaoService.registrarCompra(idCartao, valor, descricao, parcelas);
+    }
+    
+    // === Fatura == 
+    public List<CartaoCredito> listarCartoesPorConta(int idConta) throws Exception {
+    // Certifique-se de que seu cartaoService possui esse método ou use o DAO diretamente
+    return cartaoService.listarCartoesPorConta(idConta);
+}
+
+    public FaturaCartao buscarFaturaAberta(int idCartao) throws Exception {
+        java.time.LocalDate mesReferencia = java.time.LocalDate.now().withDayOfMonth(1);
+        // Usando o DAO de fatura diretamente ou via service para buscar a fatura do mês atual
+        return new dao.FaturaDAO().buscarFaturaAberta(idCartao, mesReferencia);
+    }
+
+    public List<CompraFatura> listarComprasDaFatura(int idFatura) throws Exception {
+        return new dao.CompraFaturaDAO().listarPorFatura(idFatura);
+    }
+
+    
 }
