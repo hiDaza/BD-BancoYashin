@@ -17,7 +17,7 @@ public class AgendamentoTransferencia {
     private Integer idAgendamento;
     private Integer idContaOrigem;
     private String tipoTransferencia; // "TED" ou "PIX"
-    private String dadosDestino;      // JSON com chave PIX ou dados TED
+    private String dadosDestino;      
     private BigDecimal valor;
     private LocalDate dataAgendada;
     private LocalDateTime dataCriacao;

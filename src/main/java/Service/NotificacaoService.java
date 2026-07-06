@@ -63,9 +63,8 @@ public class NotificacaoService {
         PreferenciaAlertas pref = preferenciaDAO.buscarPorCliente(idCliente);
         if (pref == null || !pref.getAlertaVencimentoConta()) return;
 
-        // Busca transações pendentes (exemplo: contas a vencer nos próximos 3 dias)
+        // Busca transações pendentes
         List<Transacao> transacoes = transacaoDAO.listarPorCliente(idCliente, null, null);
-        // Lógica simplificada - na vida real verificar faturas e boletos
         String mensagem = "ALERTA: Você possui contas a vencer nos próximos dias.";
         enviarNotificacao(pref, mensagem);
     }
@@ -77,8 +76,9 @@ public class NotificacaoService {
         enviarNotificacao(pref, mensagem);
     }
 
+    
+        //trabalhar nisso no futuro, por enquanto apenas jogo um painel de alerta 
     private void enviarNotificacao(PreferenciaAlertas pref, String mensagem) {
-        // Simulação de envio pelos canais configurados
         if (pref.getCanalEmail()) {
             System.out.println("[EMAIL] Para cliente " + pref.getIdCliente() + ": " + mensagem);
         }
@@ -101,14 +101,12 @@ public class NotificacaoService {
     
     BigDecimal limite = pref.getValorLimiteSaldo();
     if (limite != null && saldoAtual.compareTo(limite) < 0) {
-        // Exibe pop-up (usando um JDialog simples)
         String mensagem = "⚠️ ALERTA: Seu saldo (R$ " + saldoAtual + ") está abaixo do limite de R$ " + limite;
         mostrarPopUp(mensagem);
     }
 }
 
     private void mostrarPopUp(String mensagem) {
-        // Usando JOptionPane é mais simples, mas pode ser um JDialog personalizado
         JOptionPane.showMessageDialog(null, mensagem, "Alerta de Saldo", JOptionPane.WARNING_MESSAGE);
     }
 }

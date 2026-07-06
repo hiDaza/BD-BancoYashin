@@ -58,7 +58,7 @@ public class ContaService {
             throw new Exception("Não é possível encerrar a conta enquanto houver fatura em aberto.");
         }
 
-        // Verifica pendências (ex: empréstimos ativos, faturas em aberto - simplificado)
+        // Verifica pendências
         if (conta.getSaldo().compareTo(BigDecimal.ZERO) != 0) {
             if (idContaDestinoTransferencia <= 0) {
                 throw new Exception("É necessário informar uma conta destino para transferir o saldo remanescente");
@@ -106,7 +106,7 @@ public class ContaService {
         conta.setAgencia(agencia);
         conta.setNumeroConta(gerarNumeroConta());
         conta.setStatus(StatusConta.ATIVA);
-        // Saldo inicial aleatório (R$ 100 a R$ 10.000)
+        // Saldo inicial aleatório (R$ 100 a R$ 10.000)  // POR ENQUANTO ALEATORIO
         conta.setSaldo(BigDecimal.valueOf(100 + Math.random() * 9900));
         contaDAO.inserir(conta);
         

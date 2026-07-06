@@ -79,7 +79,6 @@ public class ClienteService {
     }
 
     private Cliente salvarClienteEConta(Cliente cliente, String tipoConta, String agencia) throws Exception {
-        // Verifica se já existe
         if (clienteDAO.buscarPorCpfCnpj(cliente.getCpfCnpj()) != null) {
             throw new Exception("CPF/CNPJ já cadastrado");
             
@@ -161,8 +160,6 @@ public class ClienteService {
             for (Conta c : contas) {
                 if (c.getStatus() == StatusConta.ATIVA) {
                     if (c.getSaldo().compareTo(BigDecimal.ZERO) > 0) {
-                        // Se houver saldo, podemos transferir para uma conta do banco (ex: conta 0001) ou apenas zerar
-                        // Vamos zerar (simplificado) – mas em banco real, transferir para outra conta
                         c.setSaldo(BigDecimal.ZERO);
                         contaDAO.atualizarSaldo(c);
                     }

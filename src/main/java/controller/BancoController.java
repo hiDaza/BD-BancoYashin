@@ -255,15 +255,12 @@ public class BancoController {
         cartaoService.registrarCompra(idCartao, valor, descricao, parcelas);
     }
     
-    // === Fatura == 
     public List<CartaoCredito> listarCartoesPorConta(int idConta) throws Exception {
-    // Certifique-se de que seu cartaoService possui esse método ou use o DAO diretamente
     return cartaoService.listarCartoesPorConta(idConta);
 }
 
     public FaturaCartao buscarFaturaAberta(int idCartao) throws Exception {
         java.time.LocalDate mesReferencia = java.time.LocalDate.now().withDayOfMonth(1);
-        // Usando o DAO de fatura diretamente ou via service para buscar a fatura do mês atual
         return new dao.FaturaDAO().buscarFaturaAberta(idCartao, mesReferencia);
     }
 

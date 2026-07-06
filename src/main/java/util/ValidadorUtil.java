@@ -15,7 +15,6 @@ public class ValidadorUtil {
     public static boolean validarCPF(String cpf) {
         String numeros = cpf.replaceAll("\\D", "");
         if (numeros.length() != 11) return false;
-        // Verificação de dígitos repetidos
         if (numeros.matches("(\\d)\\1{10}")) return false;
 
         // Cálculo dos dígitos verificadores (simplificado)

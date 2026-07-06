@@ -50,7 +50,7 @@ public class AutenticacaoService {
         try {
             LogUtil.registrarLog(idCliente, "LOGOUT", "Sessão encerrada");
         } catch (Exception e) {
-            // Log silencioso
+           
         }
     }
 }

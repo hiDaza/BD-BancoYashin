@@ -23,6 +23,7 @@ import com.mycompany.yashin.model.enums.StatusConta;
 import com.mycompany.yashin.model.enums.TipoPessoa;
 import controller.BancoController;
 import controller.Sessao;
+import dao.AgendamentoDAO;
 import dao.CompraFaturaDAO;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
@@ -166,9 +167,7 @@ public class TelaPrincipal extends JFrame {
         JPanel mainPanel = new JPanel(new BorderLayout());
         mainPanel.setBackground(Color.WHITE);
 
-        // ==========================================
-        // SELETOR GLOBAL DE CONTA (Topo)
-        // ==========================================
+
         JPanel painelTopoConta = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 15));
         painelTopoConta.setBackground(new Color(248, 249, 250));
         painelTopoConta.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(230, 233, 240)));
@@ -197,9 +196,8 @@ public class TelaPrincipal extends JFrame {
         painelTopoConta.add(cmbContaVisualizar);
         mainPanel.add(painelTopoConta, BorderLayout.NORTH);
 
-        // ==========================================
-        // CORPO DA TELA (Painel de Exibição de Dados)
-        // ==========================================
+
+        //Painel de Exibição de Dados
         JPanel painelConteudo = new JPanel(new BorderLayout(0, 15));
         painelConteudo.setBackground(Color.WHITE);
         painelConteudo.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
@@ -234,9 +232,8 @@ public class TelaPrincipal extends JFrame {
 
         mainPanel.add(painelConteudo, BorderLayout.CENTER);
 
-        // ==========================================
+
         // LÓGICA DE ATUALIZAÇÃO DINÂMICA
-        // ==========================================
         Runnable atualizarDadosTela = () -> {
             modeloExtrato.setRowCount(0);
             com.mycompany.yashin.model.Conta contaSelecionada = (com.mycompany.yashin.model.Conta) cmbContaVisualizar.getSelectedItem();
@@ -246,7 +243,6 @@ public class TelaPrincipal extends JFrame {
                 lblValorSaldo.setText(fmtMoeda.format(contaSelecionada.getSaldo()));
 
                 try {
-                    // CORRIGIDO: Passando os 3 parâmetros exigidos pela sua BancoController (Últimos 30 dias)
                     java.time.LocalDateTime dataFim = java.time.LocalDateTime.now();
                     java.time.LocalDateTime dataInicio = dataFim.minusDays(30);
 
@@ -342,13 +338,11 @@ public class TelaPrincipal extends JFrame {
                         return;
                     }
 
-                    // Chama rigorosamente o seu método da controller
                     com.mycompany.yashin.model.Conta novaConta = this.controller.abrirNovaConta(clienteLogado.getIdCliente(), tipoSelecionadoStr, agenciaDigitada);
 
                     if (novaConta != null) {
                         JOptionPane.showMessageDialog(mainPanel, "Nova conta criada com sucesso!\nNúmero: " + novaConta.getNumeroConta() + "\n" + "Reinicie Seu Aplicativo Para Ter Acesso a Nova Conta", "Sucesso!!", JOptionPane.INFORMATION_MESSAGE);
 
-                        // RECARGA: Busca os dados atualizados do banco usando sua lógica original para sincronizar os componentes
                         contas = controller.buscarContasPorCliente(clienteLogado.getIdCliente());
                         Sessao.getInstance().setContasCliente(contas);
                         atualizarCombosContas();
@@ -415,9 +409,7 @@ public class TelaPrincipal extends JFrame {
         JPanel mainPanel = new JPanel(new BorderLayout());
         mainPanel.setBackground(Color.WHITE);
 
-        // ==========================================
-        // SELETOR GLOBAL DE CONTA ORIGEM
-        // ==========================================
+
         JPanel painelTopoConta = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 15));
         painelTopoConta.setBackground(new Color(248, 249, 250));
         painelTopoConta.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(230, 233, 240)));
@@ -451,9 +443,7 @@ public class TelaPrincipal extends JFrame {
         abasInternas.setFont(new Font("Segoe UI", Font.BOLD, 13));
         abasInternas.setBackground(Color.WHITE);
 
-        // ==========================================
-        // ABA 1: FORMULÁRIO DE ENVIO / AGENDAMENTO
-        // ==========================================
+        // FORMULÁRIO DE ENVIO / AGENDAMENTO
         JPanel painelEnviar = new JPanel(new GridBagLayout());
         painelEnviar.setBackground(Color.WHITE);
         painelEnviar.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
@@ -487,7 +477,7 @@ public class TelaPrincipal extends JFrame {
         pnlPix.add(lblPix);
         pnlPix.add(txtPixDestino);
 
-        // INTERNA - usando JComboBox com as contas disponíveis
+        // INTERNA 
         JPanel pnlInterna = new JPanel(new GridLayout(1, 2, 10, 0));
         pnlInterna.setBackground(Color.WHITE);
         JLabel lblInterna = new JLabel("Conta Destino:");
@@ -505,7 +495,7 @@ public class TelaPrincipal extends JFrame {
                 return this;
             }
         });
-        // Preenche com as contas do usuário (exceto a origem – atualizado depois)
+        // Preenche com as contas do usuário 
         pnlInterna.add(lblInterna);
         pnlInterna.add(cmbContaDestinoInterna);
 
@@ -620,9 +610,7 @@ public class TelaPrincipal extends JFrame {
         gbc.gridx = 0; gbc.gridy = 5; gbc.gridwidth = 2;
         painelEnviar.add(btnConfirmar, gbc);
 
-        // ==========================================
         // LÓGICA DE ENVIO
-        // ==========================================
         btnConfirmar.addActionListener(e -> {
             try {
                 Conta contaOrigem = (Conta) cmbContaOrigem.getSelectedItem();
@@ -725,9 +713,8 @@ public class TelaPrincipal extends JFrame {
             }
         });
 
-        // ==========================================
+
         // ABA 2: HISTÓRICO DE AGENDAMENTOS
-        // ==========================================
         JPanel painelAgendamentos = new JPanel(new BorderLayout(0, 15));
         painelAgendamentos.setBackground(Color.WHITE);
         painelAgendamentos.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
@@ -797,10 +784,8 @@ public class TelaPrincipal extends JFrame {
             JTabbedPane abasPagamento = new JTabbedPane();
             abasPagamento.setFont(new Font("Segoe UI", Font.BOLD, 13));
 
-            // -------------------------------------------------------------------------
-            // ABA 1: Pagar Conta com Linha Digitável
-            // Campos: Conta Débito, Linha Digitável, Valor
-            // -------------------------------------------------------------------------
+
+            //  Pagar Conta com Linha Digitável
             JPanel pnlLinhaDigitavel = new JPanel(new GridBagLayout());
             pnlLinhaDigitavel.setBackground(Color.WHITE);
             GridBagConstraints gbc1 = new GridBagConstraints();
@@ -844,10 +829,7 @@ public class TelaPrincipal extends JFrame {
                 }
             });
 
-            // -------------------------------------------------------------------------
-            // ABA 2: Pagar Fatura de Cartão de Crédito
-            // Campos: Conta Débito, Fatura (Exibindo valor em aberto)
-            // -------------------------------------------------------------------------
+            // Pagar Fatura de Cartão de Crédito
             JPanel pnlFatura = new JPanel(new GridBagLayout());
             pnlFatura.setBackground(Color.WHITE);
             GridBagConstraints gbc2 = new GridBagConstraints();
@@ -895,10 +877,7 @@ public class TelaPrincipal extends JFrame {
                 }
             });
 
-            // -------------------------------------------------------------------------
-            // ABA 3: Pagamento PIX QR Code
-            // Campos: Conta Débito, QR Code, Valor
-            // -------------------------------------------------------------------------
+            // Pagamento PIX QR Code
             JPanel pnlPix = new JPanel(new GridBagLayout());
             pnlPix.setBackground(Color.WHITE);
             GridBagConstraints gbc3 = new GridBagConstraints();
@@ -942,10 +921,7 @@ public class TelaPrincipal extends JFrame {
                 }
             });
 
-            // -------------------------------------------------------------------------
-            // ABA 4: Pagamento com Cartão de Crédito
-            // Campos: Cartão (exibindo limite), Descrição, Valor, Parcelas
-            // -------------------------------------------------------------------------
+            // Pagamento com Cartão de Crédito
             JPanel pnlCartao = new JPanel(new GridBagLayout());
             pnlCartao.setBackground(Color.WHITE);
             GridBagConstraints gbc4 = new GridBagConstraints();
@@ -1006,9 +982,6 @@ public class TelaPrincipal extends JFrame {
                 }
             });
 
-            // -------------------------------------------------------------------------
-            // CARREGAMENTO DOS DADOS PARA AS COMBOS
-            // -------------------------------------------------------------------------
             try {
                 List<FaturaCartao> faturas = controller.listarFaturasCliente(clienteLogado.getIdCliente());
                 if (faturas != null) for (FaturaCartao f : faturas) cmbFaturas.addItem(f);
@@ -1028,7 +1001,7 @@ public class TelaPrincipal extends JFrame {
             return mainPanel;
         }
 
-    // ================== EMPRÉSTIMOS ==================
+    // EMPRÉSTIMOS
     private JPanel criarPainelEmprestimos() {
         JPanel panel = new JPanel(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
@@ -1153,7 +1126,7 @@ public class TelaPrincipal extends JFrame {
             }
         });
 
-        // Ação Solicitar (com animação)
+        // Ação Solicitar
         btnSolicitar.addActionListener(e -> {
             try {
                 BigDecimal valor = new BigDecimal(txtValorEmprestimo.getText().replace(",", "."));
@@ -1239,10 +1212,7 @@ public class TelaPrincipal extends JFrame {
                 try {
                     EmprestimoSolicitacao solicitacao = get();
                     if (solicitacao.getIdSolicitacao() == null) {
-                        // Se o ID for nulo, recarregar o histórico para obter o ID mais recente
-                        // Na verdade, o histórico já deve mostrar, mas vamos tentar buscar novamente
                         atualizarHistoricoEmprestimos(modelHistorico);
-                        // Tenta buscar a última solicitação do cliente
                         List<EmprestimoSolicitacao> lista = controller.listarEmprestimosCliente(idCliente);
                         if (!lista.isEmpty()) {
                             solicitacao = lista.get(lista.size() - 1); // pega a mais recente
@@ -1421,14 +1391,14 @@ public class TelaPrincipal extends JFrame {
     painelTopo.add(lblBandeira, BorderLayout.WEST);
     painelTopo.add(lblTipo, BorderLayout.EAST);
 
-    // Centro do Cartão (Número mascarado)
+    // Centro do Cartão
     String numSub = cartao.getNumeroCartao().substring(Math.max(0, cartao.getNumeroCartao().length() - 4));
     JLabel lblNumero = new JLabel("••••  ••••  ••••  " + numSub);
     lblNumero.setFont(new Font("Consolas", Font.BOLD, 22));
     lblNumero.setForeground(corTextoPrincipal);
     lblNumero.setHorizontalAlignment(SwingConstants.CENTER);
 
-    // Rodapé do Cartão (Limite Disponível rápido)
+    // Rodapé do Cartão
     JPanel painelRodape = new JPanel(new GridLayout(2, 1));
     painelRodape.setOpaque(false);
     
@@ -1444,12 +1414,10 @@ public class TelaPrincipal extends JFrame {
     painelRodape.add(lblTituloLimite);
     painelRodape.add(lblValorLimite);
 
-    // Montando o cartão
     painelCartao.add(painelTopo, BorderLayout.NORTH);
     painelCartao.add(lblNumero, BorderLayout.CENTER);
     painelCartao.add(painelRodape, BorderLayout.SOUTH);
 
-    // Efeito Visual de passar o mouse por cima (Hover)
     painelCartao.addMouseListener(new java.awt.event.MouseAdapter() {
         @Override
         public void mouseEntered(java.awt.event.MouseEvent e) {
@@ -1468,9 +1436,7 @@ public class TelaPrincipal extends JFrame {
     return painelCartao;
 }
 
-/**
- * Abre a janela flutuante detalhada com os limites e faturas do cartão clicado
- */
+
     private void abrirDetalhesDoCartao(CartaoCredito cartao) {
         JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Gerenciamento do Cartão", true);
         dialog.setSize(650, 550);
@@ -1478,7 +1444,7 @@ public class TelaPrincipal extends JFrame {
         dialog.getContentPane().setBackground(Color.WHITE);
         dialog.setLayout(new BorderLayout());
 
-        // --- PAINEL SUPERIOR: Resumo de Limites (Estilo Banco) ---
+
         JPanel painelResumo = new JPanel();
         painelResumo.setLayout(new BoxLayout(painelResumo, BoxLayout.Y_AXIS));
         painelResumo.setBackground(new Color(245, 246, 250));
@@ -1495,7 +1461,6 @@ public class TelaPrincipal extends JFrame {
         lblValorUtilizado.setFont(new Font("Segoe UI", Font.BOLD, 28));
         lblValorUtilizado.setForeground(new Color(231, 76, 60)); // Vermelho para gasto
 
-        // Barra de progresso visual do limite
         JProgressBar barraLimite = new JProgressBar(0, total.intValue());
         barraLimite.setValue(utilizado.intValue());
         barraLimite.setForeground(new Color(231, 76, 60));
@@ -1515,7 +1480,7 @@ public class TelaPrincipal extends JFrame {
         painelResumo.add(Box.createVerticalStrut(5));
         painelResumo.add(lblDisponivelTexto);
 
-        // --- PAINEL CENTRAL: Histórico / Descrição da Fatura ---
+
         JPanel painelHistorico = new JPanel(new BorderLayout());
         painelHistorico.setBackground(Color.WHITE);
         painelHistorico.setBorder(BorderFactory.createEmptyBorder(15, 25, 25, 25));
@@ -1538,7 +1503,6 @@ public class TelaPrincipal extends JFrame {
         tabelaFatura.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 13));
         tabelaFatura.setFillsViewportHeight(true);
 
-        // Carregar dados dinamicamente usando o controller
         try {
             FaturaCartao fatura = controller.buscarFaturaAberta(cartao.getIdCartao());
             if (fatura != null) {
@@ -1560,7 +1524,6 @@ public class TelaPrincipal extends JFrame {
 
         painelHistorico.add(new JScrollPane(tabelaFatura), BorderLayout.CENTER);
 
-        // Unindo tudo na janela flutuante
         dialog.add(painelResumo, BorderLayout.NORTH);
         dialog.add(painelHistorico, BorderLayout.CENTER);
         dialog.setVisible(true);
@@ -1576,12 +1539,10 @@ public class TelaPrincipal extends JFrame {
         lblTitulo.setBorder(BorderFactory.createEmptyBorder(20, 20, 10, 20));
         mainPanel.add(lblTitulo, BorderLayout.NORTH);
 
-        // Painel onde os cartões em formato de quadrado vão ficar lado a lado
         JPanel painelGridCartoes = new JPanel(new FlowLayout(FlowLayout.LEFT, 20, 20));
         painelGridCartoes.setBackground(Color.WHITE);
 
         try {
-            // Busca a conta logada na sessão para listar os cartões vinculados a ela
             if (!Sessao.getInstance().getContasCliente().isEmpty()) {
                 int idConta = Sessao.getInstance().getContasCliente().get(0).getIdConta();
 
@@ -1589,7 +1550,6 @@ public class TelaPrincipal extends JFrame {
 
                 if (listaCartoes != null && !listaCartoes.isEmpty()) {
                     for (CartaoCredito cartao : listaCartoes) {
-                        // Adiciona o widget customizado para cada cartão encontrado
                         painelGridCartoes.add(criarWidgetCartao(cartao));
                     }
                 } else {
@@ -1755,45 +1715,79 @@ public class TelaPrincipal extends JFrame {
         }
     }
 
-    // ================== AGENDAMENTOS ==================
-    private JPanel criarPainelAgendamentos() {
-        JPanel panel = new JPanel(new BorderLayout(10, 10));
-        panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+    // AGENDAMENTOS
+        private JPanel criarPainelAgendamentos() {
+            JPanel panel = new JPanel(new BorderLayout(10, 10));
+            panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        modelAgendamentos = new DefaultTableModel(new Object[]{"ID", "Conta Origem", "Tipo", "Valor", "Data Agendada", "Status"}, 0);
-        tableAgendamentos = new JTable(modelAgendamentos);
-        JScrollPane scroll = new JScrollPane(tableAgendamentos);
-        panel.add(scroll, BorderLayout.CENTER);
+            modelAgendamentos = new DefaultTableModel(new Object[]{"ID", "Conta Origem", "Tipo", "Valor", "Data Agendada", "Status"}, 0);
+            tableAgendamentos = new JTable(modelAgendamentos);
+            JScrollPane scroll = new JScrollPane(tableAgendamentos);
+            panel.add(scroll, BorderLayout.CENTER);
 
-        JButton btnCarregar = new JButton("Carregar Agendamentos");
-        btnCarregar.addActionListener(e -> carregarTabelaAgendamentos());
-        panel.add(btnCarregar, BorderLayout.SOUTH);
+            JPanel botoes = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            JButton btnCarregar = new JButton("Carregar Agendamentos");
+            btnCarregar.addActionListener(e -> carregarTabelaAgendamentos());
+            botoes.add(btnCarregar);
 
-        carregarTabelaAgendamentos();
-        return panel;
-    }
+            JButton btnExcluir = new JButton("Excluir Agendamento Selecionado");
+            btnExcluir.setForeground(Color.RED);
+            btnExcluir.addActionListener(e -> {
+                int row = tableAgendamentos.getSelectedRow();
+                if (row < 0) {
+                    JOptionPane.showMessageDialog(panel, "Selecione um agendamento para excluir.");
+                    return;
+                }
+                int id = (int) modelAgendamentos.getValueAt(row, 0);
+                Object statusObj = modelAgendamentos.getValueAt(row, 5);
+                String status = statusObj != null ? statusObj.toString() : "";
+                if (!"AGENDADO".equals(status)) {
+                    JOptionPane.showMessageDialog(panel, "Apenas agendamentos com status 'AGENDADO' podem ser excluídos.");
+                    return;
+                }
+                int confirm = JOptionPane.showConfirmDialog(panel,
+                        "Tem certeza que deseja excluir o agendamento #" + id + "?",
+                        "Confirmar Exclusão", JOptionPane.YES_NO_OPTION);
+                if (confirm == JOptionPane.YES_OPTION) {
+                    try {
+                        new AgendamentoDAO().deletar(id);
+                        JOptionPane.showMessageDialog(panel, "Agendamento excluído com sucesso!");
+                        carregarTabelaAgendamentos();
+                    } catch (Exception ex) {
+                        JOptionPane.showMessageDialog(panel, "Erro: " + ex.getMessage());
+                    }
+                }
+            });
+            botoes.add(btnExcluir);
 
-    private void carregarTabelaAgendamentos() {
-        if (modelAgendamentos == null) return;
-        try {
-            modelAgendamentos.setRowCount(0);
-            List<AgendamentoTransferencia> lista = controller.listarAgendamentosCliente(clienteLogado.getIdCliente());
-            for (AgendamentoTransferencia a : lista) {
-                modelAgendamentos.addRow(new Object[]{
-                        a.getIdAgendamento(),
-                        a.getIdContaOrigem(),
-                        a.getTipoTransferencia(),
-                        FormatadorUtil.formatarMoeda(a.getValor()),
-                        FormatadorUtil.formatarData(a.getDataAgendada()),
-                        a.getStatus()
-                });
-            }
-        } catch (Exception ex) {
-            // ignora
+            panel.add(botoes, BorderLayout.SOUTH);
+
+            carregarTabelaAgendamentos();
+            return panel;
         }
+    
+   private void carregarTabelaAgendamentos() {
+    if (modelAgendamentos == null) return;
+    try {
+        modelAgendamentos.setRowCount(0);
+        List<AgendamentoTransferencia> lista = controller.listarAgendamentosCliente(clienteLogado.getIdCliente());
+        for (AgendamentoTransferencia a : lista) {
+            modelAgendamentos.addRow(new Object[]{
+                    a.getIdAgendamento(),
+                    a.getIdContaOrigem(),
+                    a.getTipoTransferencia(),
+                    FormatadorUtil.formatarMoeda(a.getValor()),
+                    FormatadorUtil.formatarData(a.getDataAgendada()),
+                    a.getStatus() != null ? a.getStatus().toString() : "" // Agora é String
+            });
+        }
+    } catch (Exception ex) {
+        // ignora
     }
-
-    // ================== BOLETOS (PJ) ==================
+}
+    
+    
+    //  BOLETOS (PJ)
     private JPanel criarPainelBoletos() {
         JPanel panel = new JPanel(new BorderLayout(10, 10));
         panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
@@ -1914,7 +1908,7 @@ public class TelaPrincipal extends JFrame {
         }
     }
 
-    // ================== PAGAMENTOS EM LOTE (PJ) ==================
+    // PAGAMENTOS EM LOTE (PJ)
     private JPanel criarPainelLote() {
         JPanel panel = new JPanel(new BorderLayout(10, 10));
         panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
@@ -2039,11 +2033,10 @@ public class TelaPrincipal extends JFrame {
         }
     }
 
-    // ================== CONFIGURAÇÕES ==================
+    //  CONFIGURAÇÕES 
     
 
         private void atualizarTopo() {
-        // Atualiza a barra superior com o novo nome, se necessário
         Component[] comps = getContentPane().getComponents();
         for (Component c : comps) {
             if (c instanceof JPanel && ((JPanel) c).getLayout() instanceof FlowLayout) {
@@ -2074,7 +2067,7 @@ public class TelaPrincipal extends JFrame {
 
         int y = 0;
 
-        // ========== SEÇÃO ALERTAS ==========
+        //  SEÇÃO ALERTAS 
         gbc.gridy = y; gbc.gridx = 0; gbc.gridwidth = 2;
         JLabel lblAlertas = new JLabel("Alertas");
         lblAlertas.setFont(new Font("Arial", Font.BOLD, 14));
@@ -2095,7 +2088,7 @@ public class TelaPrincipal extends JFrame {
         panel.add(txtLimiteSaldo, gbc);
         y++;
 
-        // ========== SEÇÃO DADOS CADASTRAIS ==========
+        //  SEÇÃO DADOS CADASTRAIS 
         gbc.gridy = y; gbc.gridx = 0; gbc.gridwidth = 2;
         JLabel lblDados = new JLabel("Dados Cadastrais");
         lblDados.setFont(new Font("Arial", Font.BOLD, 14));
@@ -2186,7 +2179,7 @@ public class TelaPrincipal extends JFrame {
         panel.add(btnSalvarDados, gbc);
         y++;
 
-        // ========== SEÇÃO GERENCIAMENTO DE CONTAS ==========
+        //  SEÇÃO GERENCIAMENTO DE CONTAS 
         gbc.gridy = y; gbc.gridx = 0; gbc.gridwidth = 2;
         JLabel lblContas = new JLabel("Gerenciamento de Contas");
         lblContas.setFont(new Font("Arial", Font.BOLD, 14));
@@ -2257,7 +2250,6 @@ public class TelaPrincipal extends JFrame {
                 contas = controller.buscarContasPorCliente(clienteLogado.getIdCliente());
                 Sessao.getInstance().setContasCliente(contas);
                 atualizarCombosContas();
-                // Atualizar combobox de encerramento
                 cmbContaEncerrar.removeAllItems();
                 for (Conta c : contas) {
                     if (c.getStatus() == StatusConta.ATIVA) {
@@ -2272,7 +2264,7 @@ public class TelaPrincipal extends JFrame {
         panel.add(btnEncerrarConta, gbc);
         y++;
 
-        // ========== SEÇÃO EXCLUIR USUÁRIO ==========
+        //  SEÇÃO EXCLUIR USUÁRIO 
         gbc.gridy = y; gbc.gridx = 0; gbc.gridwidth = 2;
         JLabel lblExcluir = new JLabel("Excluir Usuário");
         lblExcluir.setFont(new Font("Arial", Font.BOLD, 14));
@@ -2300,7 +2292,7 @@ public class TelaPrincipal extends JFrame {
         panel.add(btnExcluirUsuario, gbc);
         y++;
 
-        // ========== BOTÃO SALVAR CONFIGURAÇÕES DE ALERTA ==========
+        //  BOTÃO SALVAR CONFIGURAÇÕES DE ALERTA 
         JButton btnSalvarAlertas = new JButton("Salvar Preferências de Alertas");
         gbc.gridy = y; gbc.gridx = 0; gbc.gridwidth = 2;
         btnSalvarAlertas.addActionListener(e -> {
@@ -2312,7 +2304,6 @@ public class TelaPrincipal extends JFrame {
                 } else {
                     pref.setValorLimiteSaldo(null);
                 }
-                // Removemos os outros canais e alertas
                 controller.configurarAlertas(pref);
                 JOptionPane.showMessageDialog(this, "Preferências de alertas salvas!");
             } catch (Exception ex) {
