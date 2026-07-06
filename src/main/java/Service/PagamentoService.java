@@ -84,6 +84,12 @@ public class PagamentoService {
     private void debitarEProcessar(Conta conta, BigDecimal valor, TipoTransacao tipo, String descricao) throws Exception {
         conta.setSaldo(conta.getSaldo().subtract(valor));
         contaDAO.atualizarSaldo(conta);
+            new NotificacaoService().verificarEAlertarSaldoBaixo(
+            conta.getIdCliente(), 
+            conta.getIdConta(), 
+            conta.getSaldo()
+        );
+
 
         Transacao t = new Transacao();
         t.setIdContaOrigem(conta.getIdConta());

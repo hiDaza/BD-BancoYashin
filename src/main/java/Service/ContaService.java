@@ -1,34 +1,33 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package Service;
 
-/**
- *
- * @author daza
- */
 import com.mycompany.yashin.model.Cliente;
 import com.mycompany.yashin.model.Conta;
 import com.mycompany.yashin.model.Transacao;
 import com.mycompany.yashin.model.enums.StatusConta;
-import com.mycompany.yashin.model.enums.TipoConta;
+
+import dao.ClienteDAO;
 
 import dao.ContaDAO;
 import dao.TransacaoDAO;
-import dao.ClienteDAO;
+import util.LogUtil;
 
 import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Random;
-import util.LogUtil;
+import com.mycompany.yashin.model.enums.TipoConta;
+
 
 public class ContaService {
     private ContaDAO contaDAO = new ContaDAO();
     private TransacaoDAO transacaoDAO = new TransacaoDAO();
     private ClienteDAO clienteDAO = new ClienteDAO();
+    
+    
+    // Instâncias dos serviços necessários para validação
+    private EmprestimoService emprestimoService = new EmprestimoService();
+    private CartaoService cartaoService = new CartaoService();
 
     public String gerarNumeroConta() {
         Random random = new Random();
@@ -50,6 +49,14 @@ public class ContaService {
     public void encerrarConta(int idConta, int idContaDestinoTransferencia) throws Exception {
         Conta conta = contaDAO.buscarPorId(idConta);
         if (conta == null) throw new Exception("Conta não encontrada");
+        
+        // Verifica se o cliente possui empréstimos ativos ou faturas em aberto
+        if (emprestimoService.temEmprestimoAtivo(conta.getIdCliente())) {
+            throw new Exception("Não é possível encerrar a conta enquanto houver empréstimo ativo.");
+        }
+        if (cartaoService.temFaturaEmAberto(conta.getIdCliente())) {
+            throw new Exception("Não é possível encerrar a conta enquanto houver fatura em aberto.");
+        }
 
         // Verifica pendências (ex: empréstimos ativos, faturas em aberto - simplificado)
         if (conta.getSaldo().compareTo(BigDecimal.ZERO) != 0) {
@@ -79,13 +86,20 @@ public class ContaService {
         conta.setLimiteDiarioPix(limitePix);
         contaDAO.atualizar(conta);
     }
+
+    public Conta buscarPorId(int id) throws SQLException {
+        return contaDAO.buscarPorId(id);
+    }
     
-    
-        public Conta abrirNovaConta(int idCliente, String tipoConta, String agencia) throws Exception {
+    public List<Conta> buscarPorCliente(int idCliente) throws SQLException {
+        return contaDAO.listarPorCliente(idCliente);
+    }
+
+    public Conta abrirNovaConta(int idCliente, String tipoConta, String agencia) throws Exception {
         Cliente cliente = clienteDAO.buscarPorId(idCliente);
         if (cliente == null) throw new Exception("Cliente não encontrado");
         if (!cliente.isAtivo()) throw new Exception("Cliente inativo");
-
+        
         Conta conta = new Conta();
         conta.setIdCliente(idCliente);
         conta.setTipoConta(TipoConta.valueOf(tipoConta.toUpperCase()));
@@ -95,20 +109,8 @@ public class ContaService {
         // Saldo inicial aleatório (R$ 100 a R$ 10.000)
         conta.setSaldo(BigDecimal.valueOf(100 + Math.random() * 9900));
         contaDAO.inserir(conta);
-
+        
         LogUtil.registrarLog(idCliente, "ABERTURA_NOVA_CONTA", "Conta criada: " + conta.getNumeroConta());
         return conta;
-    }   
-    
-    
-
-    public Conta buscarPorId(int id) throws SQLException {
-        return contaDAO.buscarPorId(id);
     }
-    
-    public List<Conta> buscarPorCliente(int idCliente) throws SQLException {
-        return contaDAO.listarPorCliente(idCliente);
-    }
-    
-    
 }

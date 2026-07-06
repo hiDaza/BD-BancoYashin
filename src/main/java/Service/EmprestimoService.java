@@ -170,6 +170,19 @@ public class EmprestimoService {
         solicitacao.setIdTransacaoCredito(t.getIdTransacao());
         emprestimoDAO.atualizar(solicitacao);
     }
+    
+    public boolean temEmprestimoAtivo(int idCliente) throws SQLException {
+        List<EmprestimoSolicitacao> lista = emprestimoDAO.listarPorCliente(idCliente);
+        for (EmprestimoSolicitacao e : lista) {
+            if (e.getStatus() == StatusEmprestimo.APROVADO) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    
+    
 
     public EmprestimoSolicitacao buscarSolicitacaoPorId(int id) throws SQLException {
         return emprestimoDAO.buscarPorId(id);
@@ -178,5 +191,9 @@ public class EmprestimoService {
     public List<EmprestimoSolicitacao> listarPorCliente(int idCliente) throws SQLException {
         return emprestimoDAO.listarPorCliente(idCliente);
     }
+    
+    
+    
+    
     
 }

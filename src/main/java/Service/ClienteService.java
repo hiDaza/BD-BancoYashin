@@ -21,6 +21,7 @@ import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import util.CriptografiaUtil;
 import util.LogUtil;
@@ -29,6 +30,8 @@ public class ClienteService {
     private ClienteDAO clienteDAO = new ClienteDAO();
     private ContaDAO contaDAO = new ContaDAO();
     private ContaService contaService = new ContaService();
+    private EmprestimoService emprestimoService = new EmprestimoService();
+    private CartaoService cartaoService = new CartaoService();
 
     public Cliente abrirContaPF(String cpf, String nome, String email, String telefone,
                                 String endereco, String senha, String rg, LocalDate dataNascimento,
@@ -135,4 +138,39 @@ public class ClienteService {
             throw new Exception("CPF/CNPJ inválido");
         }
     }
+    
+    
+        public void excluirCliente(int idCliente) throws Exception {
+            Cliente cliente = clienteDAO.buscarPorId(idCliente);
+            if (cliente == null) throw new Exception("Cliente não encontrado.");
+
+            // Verifica pendências (empréstimos ativos, faturas em aberto)
+            if (emprestimoService.temEmprestimoAtivo(idCliente)) {
+                throw new Exception("Não é possível excluir o cliente enquanto houver empréstimo ativo.");
+            }
+            if (cartaoService.temFaturaEmAberto(idCliente)) {
+                throw new Exception("Não é possível excluir o cliente enquanto houver fatura em aberto.");
+            }
+
+            // Desativa o cliente
+            cliente.setAtivo(false);
+            clienteDAO.atualizar(cliente);
+
+            // Encerra todas as contas (se houver saldo, transfere para uma conta de referência ou simplesmente zera)
+            List<Conta> contas = contaDAO.listarPorCliente(idCliente);
+            for (Conta c : contas) {
+                if (c.getStatus() == StatusConta.ATIVA) {
+                    if (c.getSaldo().compareTo(BigDecimal.ZERO) > 0) {
+                        // Se houver saldo, podemos transferir para uma conta do banco (ex: conta 0001) ou apenas zerar
+                        // Vamos zerar (simplificado) – mas em banco real, transferir para outra conta
+                        c.setSaldo(BigDecimal.ZERO);
+                        contaDAO.atualizarSaldo(c);
+                    }
+                    c.setStatus(StatusConta.ENCERRADA);
+                    contaDAO.atualizar(c);
+                }
+            }
+
+            LogUtil.registrarLog(idCliente, "EXCLUSAO_CLIENTE", "Cliente excluído.");
+        }
 }

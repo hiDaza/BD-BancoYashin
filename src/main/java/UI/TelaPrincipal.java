@@ -19,6 +19,7 @@ import com.mycompany.yashin.model.FaturaCartao;
 import com.mycompany.yashin.model.PagamentoLote;
 import com.mycompany.yashin.model.PreferenciaAlertas;
 import com.mycompany.yashin.model.Transacao;
+import com.mycompany.yashin.model.enums.StatusConta;
 import com.mycompany.yashin.model.enums.TipoPessoa;
 import controller.BancoController;
 import controller.Sessao;
@@ -30,9 +31,9 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
-import util.CatalogoBancos;
 import util.FormatadorUtil;
 import javax.swing.SwingWorker;
+import util.CriptografiaUtil;
 
 public class TelaPrincipal extends JFrame {
     private BancoController controller = new BancoController();
@@ -42,7 +43,7 @@ public class TelaPrincipal extends JFrame {
     private JTabbedPane tabbedPane;
 
     // Componentes principais
-    private JComboBox<Conta> cmbContaSaldo = new JComboBox<>(), cmbContaOrigem, cmbContaDestino, cmbContaPagamento;
+    private JComboBox<Conta> cmbContaSaldo = new JComboBox<>(), cmbContaOrigem, cmbContaDestino, cmbContaPagamento = new JComboBox<>();
     private JLabel lblSaldo = new JLabel();
     private JTextArea txtExtrato, txtResultadoEmprestimo;
     private JTable tableCartoes, tableFaturas, tableBoletos, tableLotes, tableAgendamentos;
@@ -71,6 +72,8 @@ public class TelaPrincipal extends JFrame {
         tabbedPane.addTab("Empréstimos", criarPainelEmprestimos());
         tabbedPane.addTab("Cartões", criarPainelCartoes());
         tabbedPane.addTab("Agendamentos", criarPainelAgendamentos());
+        tabbedPane.addTab("Nova Conta", criarPainelNovaConta());
+        
 
         if (clienteLogado.getTipoPessoa() == TipoPessoa.PJ) {
             tabbedPane.addTab("Boletos", criarPainelBoletos());
@@ -157,238 +160,210 @@ public class TelaPrincipal extends JFrame {
         }
     }
 
-    private void abrirNovaConta() {
-        try {
-            String[] tipos = {"CORRENTE", "POUPANCA"};
-            String tipo = (String) JOptionPane.showInputDialog(this, "Tipo de conta:", "Nova Conta",
-                    JOptionPane.QUESTION_MESSAGE, null, tipos, tipos[0]);
-            if (tipo == null) return;
-
-            List<String> agencias = CatalogoBancos.getAgenciasYashin();
-            String agencia = (String) JOptionPane.showInputDialog(this, "Agência:", "Nova Conta",
-                    JOptionPane.QUESTION_MESSAGE, null, agencias.toArray(), agencias.get(0));
-            if (agencia == null) return;
-
-            Conta novaConta = controller.abrirNovaConta(clienteLogado.getIdCliente(), tipo, agencia);
-            JOptionPane.showMessageDialog(this, "Nova conta criada!\nNúmero: " + novaConta.getNumeroConta() +
-                    "\nSaldo inicial: " + FormatadorUtil.formatarMoeda(novaConta.getSaldo()));
-
-            contas = controller.buscarContasPorCliente(clienteLogado.getIdCliente());
-            Sessao.getInstance().setContasCliente(contas);
-            atualizarCombosContas();
-            carregarSaldo();
-        } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this, "Erro: " + ex.getMessage(), "Erro", JOptionPane.ERROR_MESSAGE);
-        }
-    }
 
     // ================== SALDO/EXTRATO ==================
     private JPanel criarPainelSaldoExtrato() {
-        JPanel mainPanel = new JPanel(new BorderLayout(0, 15));
+        JPanel mainPanel = new JPanel(new BorderLayout());
         mainPanel.setBackground(Color.WHITE);
-        mainPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
-
-        java.text.NumberFormat formatadorMoeda = java.text.NumberFormat.getCurrencyInstance(new java.util.Locale("pt", "BR"));
-
-        BigDecimal saldoDisponivel = BigDecimal.ZERO;
-        int idConta = 0;
-        if (!Sessao.getInstance().getContasCliente().isEmpty()) {
-            com.mycompany.yashin.model.Conta contaAtual = Sessao.getInstance().getContasCliente().get(0);
-            saldoDisponivel = contaAtual.getSaldo();
-            idConta = contaAtual.getIdConta();
-        }
 
         // ==========================================
-        // 1. CONTAINER SUPERIOR: CARDS DE SALDO E RESUMOS
+        // SELETOR GLOBAL DE CONTA (Topo)
         // ==========================================
-        JPanel painelCards = new JPanel(new GridLayout(1, 2, 20, 0));
-        painelCards.setBackground(Color.WHITE);
+        JPanel painelTopoConta = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 15));
+        painelTopoConta.setBackground(new Color(248, 249, 250));
+        painelTopoConta.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(230, 233, 240)));
 
-        // --- CARD 1: SALDO DISPONÍVEL ---
-        JPanel cardSaldo = new JPanel(new BorderLayout());
-        cardSaldo.setBackground(new Color(248, 249, 250)); // Cinza bem claro premium
-        cardSaldo.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(230, 233, 237), 1, true),
-                BorderFactory.createEmptyBorder(15, 20, 15, 20)
-        ));
+        JLabel lblSelecionarConta = new JLabel("Visualizar Conta:");
+        lblSelecionarConta.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        painelTopoConta.add(lblSelecionarConta);
 
-        JLabel lblTituloSaldo = new JLabel("Saldo disponível");
-        lblTituloSaldo.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        lblTituloSaldo.setForeground(new Color(110, 115, 125));
-
-        final BigDecimal valorSaldoFinal = saldoDisponivel;
-        JLabel lblValorSaldo = new JLabel(formatadorMoeda.format(valorSaldoFinal));
-        lblValorSaldo.setFont(new Font("Segoe UI", Font.BOLD, 26));
-        lblValorSaldo.setForeground(new Color(33, 37, 41));
-
-        JButton btnOlho = new JButton("👁");
-        btnOlho.setFont(new Font("Segoe UI", Font.PLAIN, 16));
-        btnOlho.setBorderPainted(false);
-        btnOlho.setContentAreaFilled(false);
-        btnOlho.setFocusPainted(false);
-        btnOlho.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        btnOlho.addActionListener(e -> {
-            saldoVisivel = !saldoVisivel;
-            if (saldoVisivel) {
-                lblValorSaldo.setText(formatadorMoeda.format(valorSaldoFinal));
-                btnOlho.setText("👁");
-            } else {
-                lblValorSaldo.setText("R$ ••••,••");
-                btnOlho.setText("👁‍🗨");
+        JComboBox<com.mycompany.yashin.model.Conta> cmbContaVisualizar = new JComboBox<>();
+        cmbContaVisualizar.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        cmbContaVisualizar.setRenderer(new DefaultListCellRenderer() {
+            @Override
+            public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
+                super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+                if (value instanceof com.mycompany.yashin.model.Conta) {
+                    com.mycompany.yashin.model.Conta c = (com.mycompany.yashin.model.Conta) value;
+                    setText("Agência: " + c.getAgencia() + " | Conta: " + c.getNumeroConta() + " (" + c.getTipoConta() + ")");
+                }
+                return this;
             }
         });
 
-        JPanel painelLinhaSaldo = new JPanel(new BorderLayout());
-        painelLinhaSaldo.setOpaque(false);
-        painelLinhaSaldo.add(lblValorSaldo, BorderLayout.WEST);
-        painelLinhaSaldo.add(btnOlho, BorderLayout.EAST);
-
-        cardSaldo.add(lblTituloSaldo, BorderLayout.NORTH);
-        cardSaldo.add(painelLinhaSaldo, BorderLayout.CENTER);
-
-        // --- CARD 2: RESUMO DE ENTRADAS / SAÍDAS ---
-        JPanel cardResumo = new JPanel(new GridLayout(2, 1, 0, 5));
-        cardResumo.setBackground(new Color(248, 249, 250));
-        cardResumo.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(230, 233, 237), 1, true),
-                BorderFactory.createEmptyBorder(15, 20, 15, 20)
-        ));
-
-        JLabel lblEntradas = new JLabel("<html>↑ Entradas: <font color='#27ae60'><b>+ R$ 0,00</b></font></html>");
-        lblEntradas.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-
-        JLabel lblSaidas = new JLabel("<html>↓ Saídas: <font color='#c0392b'><b>- R$ 0,00</b></font></html>");
-        lblSaidas.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-
-        lblEntradas.setText("<html>↑ Entradas: <font color='#27ae60'><b>+ R$ 0,00</b></font></html>");
-        lblSaidas.setText("<html>↓ Saídas: <font color='#c0392b'><b>- R$ 0,00</b></font></html>");
-
-        cardResumo.add(lblEntradas);
-        cardResumo.add(lblSaidas);
-
-        painelCards.add(cardSaldo);
-        painelCards.add(cardResumo);
-        mainPanel.add(painelCards, BorderLayout.NORTH);
+        for (com.mycompany.yashin.model.Conta c : Sessao.getInstance().getContasCliente()) {
+            cmbContaVisualizar.addItem(c);
+        }
+        painelTopoConta.add(cmbContaVisualizar);
+        mainPanel.add(painelTopoConta, BorderLayout.NORTH);
 
         // ==========================================
-        // 2. CONTAINER CENTRAL: HISTÓRICO DO EXTRATO
+        // CORPO DA TELA (Painel de Exibição de Dados)
         // ==========================================
-        JPanel painelExtrato = new JPanel(new BorderLayout(0, 10));
-        painelExtrato.setBackground(Color.WHITE);
+        JPanel painelConteudo = new JPanel(new BorderLayout(0, 15));
+        painelConteudo.setBackground(Color.WHITE);
+        painelConteudo.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
-        JLabel lblTituloExtrato = new JLabel("Histórico de Transações");
-        lblTituloExtrato.setFont(new Font("Segoe UI", Font.BOLD, 16));
-        lblTituloExtrato.setForeground(new Color(50, 55, 65));
-        painelExtrato.add(lblTituloExtrato, BorderLayout.NORTH);
+        // Bloco do Saldo
+        JPanel cardSaldo = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 15));
+        cardSaldo.setBackground(new Color(108, 92, 231));
+        JLabel lblTextoSaldo = new JLabel("Saldo Disponível: ");
+        lblTextoSaldo.setFont(new Font("Segoe UI", Font.PLAIN, 16));
+        lblTextoSaldo.setForeground(Color.WHITE);
+        JLabel lblValorSaldo = new JLabel("R$ 0,00");
+        lblValorSaldo.setFont(new Font("Segoe UI", Font.BOLD, 22));
+        lblValorSaldo.setForeground(Color.WHITE);
+        cardSaldo.add(lblTextoSaldo);
+        cardSaldo.add(lblValorSaldo);
+        painelConteudo.add(cardSaldo, BorderLayout.NORTH);
 
-        String[] colunas = {"Data/Hora", "Tipo", "Descrição", "Valor"};
-        DefaultTableModel modeloTabela = new DefaultTableModel(colunas, 0) {
+        // Tabela de Extrato
+        String[] colunasExtrato = {"Data/Hora", "Tipo", "Descrição", "Valor", "Status"};
+        DefaultTableModel modeloExtrato = new DefaultTableModel(colunasExtrato, 0) {
             @Override
-            public boolean isCellEditable(int row, int column) { return false; } // Bloqueia edição direta nas células
+            public boolean isCellEditable(int row, int column) { return false; }
+        };
+        JTable tabelaExtrato = new JTable(modeloExtrato);
+        tabelaExtrato.setRowHeight(28);
+        tabelaExtrato.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        tabelaExtrato.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 13));
+
+        JScrollPane scrollExtrato = new JScrollPane(tabelaExtrato);
+        scrollExtrato.getViewport().setBackground(Color.WHITE);
+        painelConteudo.add(scrollExtrato, BorderLayout.CENTER);
+
+        mainPanel.add(painelConteudo, BorderLayout.CENTER);
+
+        // ==========================================
+        // LÓGICA DE ATUALIZAÇÃO DINÂMICA
+        // ==========================================
+        Runnable atualizarDadosTela = () -> {
+            modeloExtrato.setRowCount(0);
+            com.mycompany.yashin.model.Conta contaSelecionada = (com.mycompany.yashin.model.Conta) cmbContaVisualizar.getSelectedItem();
+
+            if (contaSelecionada != null) {
+                java.text.NumberFormat fmtMoeda = java.text.NumberFormat.getCurrencyInstance(new java.util.Locale("pt", "BR"));
+                lblValorSaldo.setText(fmtMoeda.format(contaSelecionada.getSaldo()));
+
+                try {
+                    // CORRIGIDO: Passando os 3 parâmetros exigidos pela sua BancoController (Últimos 30 dias)
+                    java.time.LocalDateTime dataFim = java.time.LocalDateTime.now();
+                    java.time.LocalDateTime dataInicio = dataFim.minusDays(30);
+
+                    java.util.List<com.mycompany.yashin.model.Transacao> transacoes = this.controller.visualizarExtrato(contaSelecionada.getIdConta(), dataInicio, dataFim);
+
+                    if (transacoes != null && !transacoes.isEmpty()) {
+                        java.time.format.DateTimeFormatter fmtData = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+                        for (com.mycompany.yashin.model.Transacao t : transacoes) {
+                            modeloExtrato.addRow(new Object[]{
+                                t.getDataHora() != null ? t.getDataHora().format(fmtData) : "-",
+                                t.getTipoTransacao(),
+                                t.getDescricao(),
+                                fmtMoeda.format(t.getValor()),
+                                t.getStatus()
+                            });
+                        }
+                    } else {
+                        modeloExtrato.addRow(new Object[]{"-", "Nenhuma transação encontrada nos últimos 30 dias.", "-", "-", "-"});
+                    }
+                } catch (Exception ex) {
+                    modeloExtrato.addRow(new Object[]{"Erro", "Falha ao carregar extrato", ex.getMessage(), "-", "-"});
+                }
+            } else {
+                lblValorSaldo.setText("R$ 0,00");
+                modeloExtrato.addRow(new Object[]{"-", "Nenhuma conta selecionada", "-", "-", "-"});
+            }
         };
 
-        JTable tabelaExtrato = new JTable(modeloTabela);
-        tabelaExtrato.setRowHeight(38); // Linhas mais altas geram um visual muito mais limpo (respiro)
-        tabelaExtrato.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        tabelaExtrato.setShowVerticalLines(false); // Remove as linhas verticais feias de planilhas antigas
-        tabelaExtrato.setGridColor(new Color(240, 240, 245));
-        tabelaExtrato.setSelectionBackground(new Color(235, 243, 255)); // Cor sutil de seleção
-        tabelaExtrato.setSelectionForeground(Color.BLACK);
+        cmbContaVisualizar.addActionListener(e -> atualizarDadosTela.run());
+        atualizarDadosTela.run();
 
-        tabelaExtrato.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 13));
-        tabelaExtrato.getTableHeader().setBackground(new Color(240, 242, 245));
-        tabelaExtrato.getTableHeader().setForeground(new Color(70, 75, 85));
-        tabelaExtrato.getTableHeader().setReorderingAllowed(false);
-
-        // --- CARREGAMENTO DOS DADOS NO EXTRATO ---
-        try {
-         if (idConta > 0) {
-             // Buscando as transações da conta
-             java.time.LocalDateTime fim = java.time.LocalDateTime.now();
-             java.time.LocalDateTime inicio = fim.minusDays(30);
-
-             java.util.List<com.mycompany.yashin.model.Transacao> transacoes = controller.visualizarExtrato(idConta, inicio, fim);
-
-             // VARIÁVEIS PARA SOMAR TUDO
-             BigDecimal somaEntradas = BigDecimal.ZERO;
-             BigDecimal somaSaidas = BigDecimal.ZERO;
-
-             if (transacoes != null && !transacoes.isEmpty()) {
-                 java.time.format.DateTimeFormatter formatadorData = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
-
-                 for (com.mycompany.yashin.model.Transacao t : transacoes) {
-                     BigDecimal valor = t.getValor();
-                     String sinal = "";
-
-                     // Lógica para descobrir se o dinheiro ENTROU ou SAIU
-                     boolean ehEntrada = t.getIdContaDestino() != null && t.getIdContaDestino() == idConta;
-                     if (!ehEntrada) {
-                         sinal = "- ";
-                         somaSaidas = somaSaidas.add(valor); // <-- SOMA NAS SAÍDAS
-                     } else {
-                         sinal = "+ ";
-                         somaEntradas = somaEntradas.add(valor); // <-- SOMA NAS ENTRADAS
-                     }
-
-                     modeloTabela.addRow(new Object[]{
-                         t.getDataHora() != null ? t.getDataHora().format(formatadorData) : "-",
-                         t.getTipoTransacao() != null ? t.getTipoTransacao().toString() : "OUTROS",
-                         t.getDescricao(),
-                         sinal + formatadorMoeda.format(valor)
-                     });
-                 }
-
-                 // DEPOIS DE SOMAR TUDO, ATUALIZAMOS OS CARDS LÁ DE CIMA!
-                 lblEntradas.setText("<html>↑ Entradas: <font color='#27ae60'><b>+ " + formatadorMoeda.format(somaEntradas) + "</b></font></html>");
-                 lblSaidas.setText("<html>↓ Saídas: <font color='#c0392b'><b>- " + formatadorMoeda.format(somaSaidas) + "</b></font></html>");
-
-             } else {
-                 modeloTabela.addRow(new Object[]{"-", "Nenhuma transação encontrada", "Período sem movimentações.", "-"});
-             }
-         }
-     } catch (Exception ex) {
-         modeloTabela.addRow(new Object[]{"Erro", "Falha ao carregar extrato", ex.getMessage(), "-"});
-     }
-        // ==========================================
-        // 3. RENDERIZADOR DE CORES CUSTOMIZADAS (O segredo do visual)
-        // ==========================================
-        tabelaExtrato.setDefaultRenderer(Object.class, new javax.swing.table.DefaultTableCellRenderer() {
-            @Override
-            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, 
-                                                           boolean hasFocus, int row, int column) {
-                Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-
-                Object valorColuna = table.getValueAt(row, 3);
-                if (valorColuna != null) {
-                    String strValor = valorColuna.toString();
-                    if (strValor.startsWith("+")) {
-                        if (column == 3) c.setForeground(new Color(39, 174, 96));
-                        else c.setForeground(new Color(33, 37, 41));
-                    } else if (strValor.startsWith("-")) {
-                        if (column == 3) c.setForeground(new Color(192, 41, 43));
-                        else c.setForeground(new Color(33, 37, 41));
-                    } else {
-                        c.setForeground(Color.GRAY);
-                    }
-                }
-
-                if (!isSelected) {
-                    if (row % 2 == 0) c.setBackground(Color.WHITE);
-                    else c.setBackground(new Color(252, 252, 254));
-                }
-
-                return c;
-            }
-        });
-
-        JScrollPane scrollTable = new JScrollPane(tabelaExtrato);
-        scrollTable.setBorder(BorderFactory.createLineBorder(new Color(230, 233, 240)));
-        scrollTable.getViewport().setBackground(Color.WHITE);
-        painelExtrato.add(scrollTable, BorderLayout.CENTER);
-
-        mainPanel.add(painelExtrato, BorderLayout.CENTER);
         return mainPanel;
     }
+
+    private JPanel criarPainelNovaConta() {
+            JPanel mainPanel = new JPanel(new GridBagLayout());
+            mainPanel.setBackground(Color.WHITE);
+            mainPanel.setBorder(BorderFactory.createEmptyBorder(30, 30, 30, 30));
+
+            GridBagConstraints gbc = new GridBagConstraints();
+            gbc.insets = new Insets(10, 10, 10, 10);
+            gbc.fill = GridBagConstraints.HORIZONTAL;
+
+            JLabel lblTitulo = new JLabel("Abrir Nova Conta Bancária");
+            lblTitulo.setFont(new Font("Segoe UI", Font.BOLD, 18));
+            gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 2;
+            mainPanel.add(lblTitulo, gbc);
+
+            JLabel lblTipo = new JLabel("Tipo de Conta:");
+            lblTipo.setFont(new Font("Segoe UI", Font.BOLD, 13));
+            gbc.gridx = 0; gbc.gridy = 1; gbc.gridwidth = 1;
+            mainPanel.add(lblTipo, gbc);
+
+            // Usa o Enum do seu próprio modelo do projeto
+            JComboBox<com.mycompany.yashin.model.enums.TipoConta> cmbTipoConta = new JComboBox<>(com.mycompany.yashin.model.enums.TipoConta.values());
+            cmbTipoConta.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+            gbc.gridx = 1;
+            mainPanel.add(cmbTipoConta, gbc);
+
+            JLabel lblAgencia = new JLabel("Agência:");
+            lblAgencia.setFont(new Font("Segoe UI", Font.BOLD, 13));
+            gbc.gridx = 0; gbc.gridy = 2;
+            mainPanel.add(lblAgencia, gbc);
+
+            // Usa os dados existentes nas suas agências ou uma agência padrão do seu projeto
+            JTextField txtAgencia = new JTextField("0001");
+            txtAgencia.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+            gbc.gridx = 1;
+            mainPanel.add(txtAgencia, gbc);
+
+            // Autofill baseado nas suas contas da sessão
+            if (!contas.isEmpty()) {
+                txtAgencia.setText(contas.get(0).getAgencia());
+            }
+
+            JButton btnCriarConta = new JButton("Solicitar e Ativar Conta ➔");
+            btnCriarConta.setFont(new Font("Segoe UI", Font.BOLD, 14));
+            btnCriarConta.setBackground(new Color(46, 204, 113)); // Verde moderno
+            btnCriarConta.setForeground(Color.WHITE);
+            btnCriarConta.setFocusPainted(false);
+            btnCriarConta.setCursor(new Cursor(Cursor.HAND_CURSOR));
+            btnCriarConta.setBorder(BorderFactory.createEmptyBorder(12, 20, 12, 20));
+            gbc.gridx = 0; gbc.gridy = 3; gbc.gridwidth = 2;
+            mainPanel.add(btnCriarConta, gbc);
+
+            btnCriarConta.addActionListener(e -> {
+                try {
+                    String tipoSelecionadoStr = cmbTipoConta.getSelectedItem().toString();
+                    String agenciaDigitada = txtAgencia.getText().trim();
+
+                    if (agenciaDigitada.isEmpty()) {
+                        JOptionPane.showMessageDialog(mainPanel, "Informe o número da agência.", "Aviso", JOptionPane.WARNING_MESSAGE);
+                        return;
+                    }
+
+                    // Chama rigorosamente o seu método da controller
+                    com.mycompany.yashin.model.Conta novaConta = this.controller.abrirNovaConta(clienteLogado.getIdCliente(), tipoSelecionadoStr, agenciaDigitada);
+
+                    if (novaConta != null) {
+                        JOptionPane.showMessageDialog(mainPanel, "Nova conta criada com sucesso!\nNúmero: " + novaConta.getNumeroConta() + "\n" + "Reinicie Seu Aplicativo Para Ter Acesso a Nova Conta", "Sucesso!!", JOptionPane.INFORMATION_MESSAGE);
+
+                        // RECARGA: Busca os dados atualizados do banco usando sua lógica original para sincronizar os componentes
+                        contas = controller.buscarContasPorCliente(clienteLogado.getIdCliente());
+                        Sessao.getInstance().setContasCliente(contas);
+                        atualizarCombosContas();
+
+                        // Atualiza também a própria tela de Saldo atual trocando de aba para atualizar os dados visuais
+                        tabbedPane.setSelectedIndex(0);
+                    }
+                } catch (Exception ex) {
+                    JOptionPane.showMessageDialog(mainPanel, "Erro ao abrir nova conta: " + ex.getMessage(), "Erro", JOptionPane.ERROR_MESSAGE);
+                }
+            });
+
+            return mainPanel;
+        }
+
 
     private void carregarSaldo() {
         if (cmbContaSaldo.getSelectedItem() == null) return;
@@ -435,517 +410,623 @@ public class TelaPrincipal extends JFrame {
         }
     }
 
-    // ================== TRANSFERÊNCIAS ==================
+        // ================== TRANSFERÊNCIAS ==================
     private JPanel criarPainelTransferencias() {
-        JPanel painelPrincipal = new JPanel(new BorderLayout());
+        JPanel mainPanel = new JPanel(new BorderLayout());
+        mainPanel.setBackground(Color.WHITE);
 
-        JPanel conteudo = new JPanel(new GridBagLayout());
+        // ==========================================
+        // SELETOR GLOBAL DE CONTA ORIGEM
+        // ==========================================
+        JPanel painelTopoConta = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 15));
+        painelTopoConta.setBackground(new Color(248, 249, 250));
+        painelTopoConta.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(230, 233, 240)));
+
+        JLabel lblSelecionarConta = new JLabel("Selecione a conta de origem:");
+        lblSelecionarConta.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        painelTopoConta.add(lblSelecionarConta);
+
+        JComboBox<Conta> cmbContaOrigem = new JComboBox<>();
+        cmbContaOrigem.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        cmbContaOrigem.setRenderer(new DefaultListCellRenderer() {
+            @Override
+            public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
+                super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+                if (value instanceof Conta) {
+                    Conta c = (Conta) value;
+                    setText("Agência: " + c.getAgencia() + " | Conta: " + c.getNumeroConta());
+                }
+                return this;
+            }
+        });
+
+        for (Conta c : Sessao.getInstance().getContasCliente()) {
+            cmbContaOrigem.addItem(c);
+        }
+        painelTopoConta.add(cmbContaOrigem);
+        mainPanel.add(painelTopoConta, BorderLayout.NORTH);
+
+        // Abas Internas
+        JTabbedPane abasInternas = new JTabbedPane();
+        abasInternas.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        abasInternas.setBackground(Color.WHITE);
+
+        // ==========================================
+        // ABA 1: FORMULÁRIO DE ENVIO / AGENDAMENTO
+        // ==========================================
+        JPanel painelEnviar = new JPanel(new GridBagLayout());
+        painelEnviar.setBackground(Color.WHITE);
+        painelEnviar.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(8, 8, 8, 8);
-        gbc.anchor = GridBagConstraints.WEST;
+        gbc.insets = new Insets(6, 6, 6, 6);
         gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.gridwidth = 1;
 
-        int linha = 0;
+        // 1. Tipo de Transferência
+        JLabel lblTipo = new JLabel("Modalidade:");
+        lblTipo.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        gbc.gridx = 0; gbc.gridy = 0;
+        painelEnviar.add(lblTipo, gbc);
 
-        JLabel titulo = new JLabel("Transferências");
-        titulo.setFont(new Font("Arial", Font.BOLD, 16));
-        gbc.gridy = linha; gbc.gridx = 0; gbc.gridwidth = 2;
-        conteudo.add(titulo, gbc);
-        linha++;
-
-        // Transferência Interna
-        gbc.gridwidth = 2;
-        gbc.gridy = linha; gbc.gridx = 0;
-        conteudo.add(new JLabel("Transferência Interna"), gbc);
-        linha++;
-
-        gbc.gridwidth = 1;
-        gbc.gridy = linha; gbc.gridx = 0;
-        conteudo.add(new JLabel("Conta Origem:"), gbc);
-        cmbContaOrigem = new JComboBox<>();
+        String[] tiposTransf = {"PIX (Instantâneo)", "Transferência Interna (Mesmo Banco)", "TED / DOC (Tradicional)"};
+        JComboBox<String> cmbTipoTransf = new JComboBox<>(tiposTransf);
+        cmbTipoTransf.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         gbc.gridx = 1;
-        conteudo.add(cmbContaOrigem, gbc);
-        linha++;
+        painelEnviar.add(cmbTipoTransf, gbc);
 
-        gbc.gridy = linha; gbc.gridx = 0;
-        conteudo.add(new JLabel("Conta Destino:"), gbc);
-        cmbContaDestino = new JComboBox<>();
-        gbc.gridx = 1;
-        conteudo.add(cmbContaDestino, gbc);
-        linha++;
-
-        gbc.gridy = linha; gbc.gridx = 0;
-        conteudo.add(new JLabel("Valor:"), gbc);
-        JTextField txtValorInterna = new JTextField(10);
-        gbc.gridx = 1;
-        conteudo.add(txtValorInterna, gbc);
-        linha++;
-
-        JButton btnTransferirInterna = new JButton("Transferir");
-        gbc.gridy = linha; gbc.gridx = 0; gbc.gridwidth = 2;
-        btnTransferirInterna.addActionListener(e -> {
-            try {
-                Conta origem = (Conta) cmbContaOrigem.getSelectedItem();
-                Conta destino = (Conta) cmbContaDestino.getSelectedItem();
-                if (origem == null || destino == null) throw new Exception("Selecione contas válidas.");
-                if (origem.getIdConta().equals(destino.getIdConta())) throw new Exception("Origem e destino devem ser diferentes.");
-                BigDecimal valor = new BigDecimal(txtValorInterna.getText().replace(",", "."));
-                controller.transferenciaInterna(origem.getIdConta(), destino.getIdConta(), valor);
-                JOptionPane.showMessageDialog(this, "Transferência interna realizada com sucesso!");
-                carregarSaldo();
-                txtValorInterna.setText("");
-            } catch (Exception ex) {
-                JOptionPane.showMessageDialog(this, "Erro: " + ex.getMessage(), "Erro", JOptionPane.ERROR_MESSAGE);
-            }
-        });
-        conteudo.add(btnTransferirInterna, gbc);
-        linha++;
-
-        // Separador
-        gbc.gridy = linha; gbc.gridx = 0; gbc.gridwidth = 2;
-        conteudo.add(new JSeparator(), gbc);
-        linha++;
-
-        // TED
-        gbc.gridwidth = 2;
-        gbc.gridy = linha; gbc.gridx = 0;
-        JLabel lblTed = new JLabel("Transferência TED");
-        lblTed.setFont(new Font("Arial", Font.BOLD, 14));
-        conteudo.add(lblTed, gbc);
-        linha++;
-
-        gbc.gridwidth = 1;
-        gbc.gridy = linha; gbc.gridx = 0;
-        conteudo.add(new JLabel("Banco Destino:"), gbc);
-        JTextField txtBancoTED = new JTextField(5);
-        JLabel lblNomeBanco = new JLabel("");
-        lblNomeBanco.setForeground(Color.BLUE);
-
-        cmbAgenciaTED = new JComboBox<>();
-        txtBancoTED.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
-            public void changedUpdate(javax.swing.event.DocumentEvent e) { atualizar(); }
-            public void removeUpdate(javax.swing.event.DocumentEvent e) { atualizar(); }
-            public void insertUpdate(javax.swing.event.DocumentEvent e) { atualizar(); }
-            private void atualizar() {
-                String codigo = txtBancoTED.getText().trim();
-                if (CatalogoBancos.isBancoValido(codigo)) {
-                    lblNomeBanco.setText(CatalogoBancos.getNomeBanco(codigo));
-                    List<String> agencias = CatalogoBancos.getAgencias(codigo);
-                    cmbAgenciaTED.removeAllItems();
-                    for (String ag : agencias) {
-                        cmbAgenciaTED.addItem(ag);
-                    }
-                    if (!agencias.isEmpty()) cmbAgenciaTED.setSelectedIndex(0);
-                } else {
-                    lblNomeBanco.setText("");
-                    cmbAgenciaTED.removeAllItems();
-                }
-            }
-        });
-
-        JPanel panelBanco = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
-        panelBanco.add(txtBancoTED);
-        panelBanco.add(Box.createHorizontalStrut(5));
-        panelBanco.add(lblNomeBanco);
-        gbc.gridx = 1;
-        conteudo.add(panelBanco, gbc);
-        linha++;
-
-        gbc.gridy = linha; gbc.gridx = 0;
-        conteudo.add(new JLabel("Agência:"), gbc);
-        gbc.gridx = 1;
-        conteudo.add(cmbAgenciaTED, gbc);
-        linha++;
-
-        gbc.gridy = linha; gbc.gridx = 0;
-        conteudo.add(new JLabel("Conta Destino:"), gbc);
-        JTextField txtContaTED = new JTextField(10);
-        gbc.gridx = 1;
-        conteudo.add(txtContaTED, gbc);
-        linha++;
-
-        gbc.gridy = linha; gbc.gridx = 0;
-        conteudo.add(new JLabel("CPF/CNPJ Beneficiário:"), gbc);
-        JTextField txtCpfTED = new JTextField(14);
-        gbc.gridx = 1;
-        conteudo.add(txtCpfTED, gbc);
-        linha++;
-
-        gbc.gridy = linha; gbc.gridx = 0;
-        conteudo.add(new JLabel("Nome Beneficiário:"), gbc);
-        JTextField txtNomeTED = new JTextField(15);
-        gbc.gridx = 1;
-        conteudo.add(txtNomeTED, gbc);
-        linha++;
-
-        gbc.gridy = linha; gbc.gridx = 0;
-        conteudo.add(new JLabel("Valor:"), gbc);
-        JTextField txtValorTED = new JTextField(10);
-        gbc.gridx = 1;
-        conteudo.add(txtValorTED, gbc);
-        linha++;
-
-        JButton btnTED = new JButton("Enviar TED");
-        gbc.gridy = linha; gbc.gridx = 0; gbc.gridwidth = 2;
-        btnTED.addActionListener(e -> {
-            try {
-                Conta origem = (Conta) cmbContaOrigem.getSelectedItem();
-                if (origem == null) throw new Exception("Selecione uma conta origem.");
-                String banco = txtBancoTED.getText().trim();
-                if (!CatalogoBancos.isBancoValido(banco)) {
-                    throw new Exception("Código de banco inválido.");
-                }
-                String agencia = (String) cmbAgenciaTED.getSelectedItem();
-                if (agencia == null || agencia.isEmpty()) {
-                    throw new Exception("Selecione uma agência.");
-                }
-                String conta = txtContaTED.getText().trim();
-                String cpfCnpj = txtCpfTED.getText().trim();
-                String nome = txtNomeTED.getText().trim();
-                BigDecimal valor = new BigDecimal(txtValorTED.getText().replace(",", "."));
-                controller.transferenciaTED(origem.getIdConta(), banco, agencia, conta, cpfCnpj, nome, valor);
-                JOptionPane.showMessageDialog(this, "TED enviada com sucesso!");
-                carregarSaldo();
-                txtValorTED.setText("");
-                txtBancoTED.setText("");
-                lblNomeBanco.setText("");
-                cmbAgenciaTED.removeAllItems();
-                txtContaTED.setText("");
-                txtCpfTED.setText("");
-                txtNomeTED.setText("");
-            } catch (Exception ex) {
-                JOptionPane.showMessageDialog(this, "Erro: " + ex.getMessage(), "Erro", JOptionPane.ERROR_MESSAGE);
-            }
-        });
-        conteudo.add(btnTED, gbc);
-        linha++;
-
-        // Separador
-        gbc.gridy = linha; gbc.gridx = 0; gbc.gridwidth = 2;
-        conteudo.add(new JSeparator(), gbc);
-        linha++;
+        // 2. Painel Dinâmico de Destinatário
+        JPanel painelDadosDestino = new JPanel(new CardLayout());
+        painelDadosDestino.setBackground(Color.WHITE);
 
         // PIX
-        gbc.gridwidth = 2;
-        gbc.gridy = linha; gbc.gridx = 0;
-        conteudo.add(new JLabel("Transferência PIX"), gbc);
-        linha++;
+        JPanel pnlPix = new JPanel(new GridLayout(1, 2, 10, 0));
+        pnlPix.setBackground(Color.WHITE);
+        JLabel lblPix = new JLabel("Chave PIX (CPF/Email/Celular):");
+        lblPix.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        JTextField txtPixDestino = new JTextField();
+        txtPixDestino.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        pnlPix.add(lblPix);
+        pnlPix.add(txtPixDestino);
 
-        gbc.gridwidth = 1;
-        gbc.gridy = linha; gbc.gridx = 0;
-        conteudo.add(new JLabel("Chave PIX:"), gbc);
-        JTextField txtChavePIX = new JTextField(15);
-        gbc.gridx = 1;
-        conteudo.add(txtChavePIX, gbc);
-        linha++;
-
-        gbc.gridy = linha; gbc.gridx = 0;
-        conteudo.add(new JLabel("Valor:"), gbc);
-        JTextField txtValorPIX = new JTextField(10);
-        gbc.gridx = 1;
-        conteudo.add(txtValorPIX, gbc);
-        linha++;
-
-        JButton btnPIX = new JButton("Enviar PIX");
-        gbc.gridy = linha; gbc.gridx = 0; gbc.gridwidth = 2;
-        btnPIX.addActionListener(e -> {
-            try {
-                Conta origem = (Conta) cmbContaOrigem.getSelectedItem();
-                BigDecimal valor = new BigDecimal(txtValorPIX.getText().replace(",", "."));
-                controller.transferenciaPIX(origem.getIdConta(), txtChavePIX.getText(), valor);
-                JOptionPane.showMessageDialog(this, "PIX enviado com sucesso!");
-                carregarSaldo();
-                txtValorPIX.setText("");
-            } catch (Exception ex) {
-                JOptionPane.showMessageDialog(this, "Erro: " + ex.getMessage(), "Erro", JOptionPane.ERROR_MESSAGE);
+        // INTERNA - usando JComboBox com as contas disponíveis
+        JPanel pnlInterna = new JPanel(new GridLayout(1, 2, 10, 0));
+        pnlInterna.setBackground(Color.WHITE);
+        JLabel lblInterna = new JLabel("Conta Destino:");
+        lblInterna.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        JComboBox<Conta> cmbContaDestinoInterna = new JComboBox<>();
+        cmbContaDestinoInterna.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        cmbContaDestinoInterna.setRenderer(new DefaultListCellRenderer() {
+            @Override
+            public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
+                super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+                if (value instanceof Conta) {
+                    Conta c = (Conta) value;
+                    setText("Ag: " + c.getAgencia() + " | Conta: " + c.getNumeroConta());
+                }
+                return this;
             }
         });
-        conteudo.add(btnPIX, gbc);
-        linha++;
+        // Preenche com as contas do usuário (exceto a origem – atualizado depois)
+        pnlInterna.add(lblInterna);
+        pnlInterna.add(cmbContaDestinoInterna);
 
-        // Agendamento
-        gbc.gridy = linha; gbc.gridx = 0; gbc.gridwidth = 2;
-        conteudo.add(new JSeparator(), gbc);
-        linha++;
+        // TED
+        JPanel pnlTed = new JPanel(new GridLayout(5, 2, 10, 6));
+        pnlTed.setBackground(Color.WHITE);
+        JLabel lblTedBanco = new JLabel("Banco (Código):");
+        lblTedBanco.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        JTextField txtTedBanco = new JTextField();
+        JLabel lblTedAgencia = new JLabel("Agência:");
+        lblTedAgencia.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        JTextField txtTedAgencia = new JTextField();
+        JLabel lblTedConta = new JLabel("Número da Conta:");
+        lblTedConta.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        JTextField txtTedConta = new JTextField();
+        JLabel lblTedDigito = new JLabel("Dígito:");
+        lblTedDigito.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        JTextField txtTedDigito = new JTextField();
+        JLabel lblTedCpf = new JLabel("CPF/CNPJ do Favorecido:");
+        lblTedCpf.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        JTextField txtTedCpf = new JTextField();
 
-        gbc.gridwidth = 2;
-        gbc.gridy = linha; gbc.gridx = 0;
-        conteudo.add(new JLabel("Agendar Transferência"), gbc);
-        linha++;
+        pnlTed.add(lblTedBanco); pnlTed.add(txtTedBanco);
+        pnlTed.add(lblTedAgencia); pnlTed.add(txtTedAgencia);
+        pnlTed.add(lblTedConta); pnlTed.add(txtTedConta);
+        pnlTed.add(lblTedDigito); pnlTed.add(txtTedDigito);
+        pnlTed.add(lblTedCpf); pnlTed.add(txtTedCpf);
 
-        gbc.gridwidth = 1;
-        gbc.gridy = linha; gbc.gridx = 0;
-        conteudo.add(new JLabel("Tipo (TED/PIX):"), gbc);
-        JComboBox<String> cmbTipoAgend = new JComboBox<>(new String[]{"TED", "PIX"});
-        gbc.gridx = 1;
-        conteudo.add(cmbTipoAgend, gbc);
-        linha++;
+        painelDadosDestino.add(pnlPix, "PIX");
+        painelDadosDestino.add(pnlInterna, "INTERNA");
+        painelDadosDestino.add(pnlTed, "TED");
 
-        gbc.gridy = linha; gbc.gridx = 0;
-        conteudo.add(new JLabel("Dados Destino (JSON):"), gbc);
-        JTextField txtDadosAgend = new JTextField(20);
-        gbc.gridx = 1;
-        conteudo.add(txtDadosAgend, gbc);
-        linha++;
+        gbc.gridx = 0; gbc.gridy = 1; gbc.gridwidth = 2;
+        painelEnviar.add(painelDadosDestino, gbc);
 
-        gbc.gridy = linha; gbc.gridx = 0;
-        conteudo.add(new JLabel("Valor:"), gbc);
-        JTextField txtValorAgend = new JTextField(10);
-        gbc.gridx = 1;
-        conteudo.add(txtValorAgend, gbc);
-        linha++;
-
-        gbc.gridy = linha; gbc.gridx = 0;
-        conteudo.add(new JLabel("Data (dd/mm/aaaa):"), gbc);
-        JTextField txtDataAgend = new JTextField(10);
-        gbc.gridx = 1;
-        conteudo.add(txtDataAgend, gbc);
-        linha++;
-
-        JButton btnAgendar = new JButton("Agendar");
-        gbc.gridy = linha; gbc.gridx = 0; gbc.gridwidth = 2;
-        btnAgendar.addActionListener(e -> {
-            try {
-                Conta origem = (Conta) cmbContaOrigem.getSelectedItem();
-                String tipo = (String) cmbTipoAgend.getSelectedItem();
-                BigDecimal valor = new BigDecimal(txtValorAgend.getText().replace(",", "."));
-                LocalDate data = FormatadorUtil.parseData(txtDataAgend.getText());
-                controller.agendarTransferencia(origem.getIdConta(), tipo, txtDadosAgend.getText(), valor, data);
-                JOptionPane.showMessageDialog(this, "Transferência agendada com sucesso!");
-                carregarTabelaAgendamentos();
-                txtValorAgend.setText("");
-            } catch (Exception ex) {
-                JOptionPane.showMessageDialog(this, "Erro: " + ex.getMessage(), "Erro", JOptionPane.ERROR_MESSAGE);
+        // Atualiza combos de destino quando a origem muda
+        cmbContaOrigem.addActionListener(e -> {
+            Conta origem = (Conta) cmbContaOrigem.getSelectedItem();
+            if (origem != null) {
+                cmbContaDestinoInterna.removeAllItems();
+                for (Conta c : Sessao.getInstance().getContasCliente()) {
+                    if (c.getIdConta() != origem.getIdConta()) {
+                        cmbContaDestinoInterna.addItem(c);
+                    }
+                }
+                if (cmbContaDestinoInterna.getItemCount() == 0) {
+                    cmbContaDestinoInterna.addItem(null); // placeholder
+                }
             }
         });
-        conteudo.add(btnAgendar, gbc);
+        // Força a primeira atualização
+        cmbContaOrigem.getActionListeners()[0].actionPerformed(null);
 
-        JScrollPane scroll = new JScrollPane(conteudo);
-        painelPrincipal.add(scroll, BorderLayout.CENTER);
-        return painelPrincipal;
+        // Alternar painéis
+        cmbTipoTransf.addActionListener(e -> {
+            CardLayout cl = (CardLayout) painelDadosDestino.getLayout();
+            int sel = cmbTipoTransf.getSelectedIndex();
+            if (sel == 0) cl.show(painelDadosDestino, "PIX");
+            else if (sel == 1) cl.show(painelDadosDestino, "INTERNA");
+            else cl.show(painelDadosDestino, "TED");
+        });
+
+        // 3. Valor
+        JLabel lblValor = new JLabel("Valor da Operação:");
+        lblValor.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        gbc.gridx = 0; gbc.gridy = 2; gbc.gridwidth = 1;
+        painelEnviar.add(lblValor, gbc);
+
+        JTextField txtValor = new JTextField();
+        txtValor.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        gbc.gridx = 1;
+        painelEnviar.add(txtValor, gbc);
+
+        // 4. Agendamento
+        JCheckBox chkAgendar = new JCheckBox("Agendar esta transferência para uma data futura");
+        chkAgendar.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        chkAgendar.setBackground(Color.WHITE);
+        gbc.gridx = 0; gbc.gridy = 3; gbc.gridwidth = 2;
+        painelEnviar.add(chkAgendar, gbc);
+
+        JLabel lblData = new JLabel("Data do Agendamento (DD/MM/AAAA):");
+        lblData.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        lblData.setEnabled(false);
+        gbc.gridx = 0; gbc.gridy = 4; gbc.gridwidth = 1;
+        painelEnviar.add(lblData, gbc);
+
+        JTextField txtData = new JTextField();
+        txtData.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        txtData.setEnabled(false);
+        gbc.gridx = 1;
+        painelEnviar.add(txtData, gbc);
+
+        chkAgendar.addActionListener(e -> {
+            boolean ativo = chkAgendar.isSelected();
+            lblData.setEnabled(ativo);
+            txtData.setEnabled(ativo);
+            if (ativo) {
+                txtData.setText(java.time.LocalDate.now().plusDays(1).format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")));
+            } else {
+                txtData.setText("");
+            }
+        });
+
+        // 5. Botão Confirmar
+        JButton btnConfirmar = new JButton("Confirmar Operação Bancária ➔");
+        btnConfirmar.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        btnConfirmar.setBackground(new Color(108, 92, 231));
+        btnConfirmar.setForeground(Color.WHITE);
+        btnConfirmar.setFocusPainted(false);
+        btnConfirmar.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btnConfirmar.setBorder(BorderFactory.createEmptyBorder(12, 20, 12, 20));
+        gbc.gridx = 0; gbc.gridy = 5; gbc.gridwidth = 2;
+        painelEnviar.add(btnConfirmar, gbc);
+
+        // ==========================================
+        // LÓGICA DE ENVIO
+        // ==========================================
+        btnConfirmar.addActionListener(e -> {
+            try {
+                Conta contaOrigem = (Conta) cmbContaOrigem.getSelectedItem();
+                if (contaOrigem == null) {
+                    JOptionPane.showMessageDialog(mainPanel, "Nenhuma conta de origem selecionada.", "Erro", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                int idContaOrigem = contaOrigem.getIdConta();
+
+                String valorStr = txtValor.getText().trim();
+                if (valorStr.isEmpty()) {
+                    JOptionPane.showMessageDialog(mainPanel, "Informe o valor da transferência.", "Aviso", JOptionPane.WARNING_MESSAGE);
+                    return;
+                }
+                BigDecimal valor = new BigDecimal(valorStr.replace(",", "."));
+                int modalidade = cmbTipoTransf.getSelectedIndex();
+
+                String destinoReal = "";
+                if (modalidade == 0) {
+                    destinoReal = txtPixDestino.getText().trim();
+                    if (destinoReal.isEmpty()) {
+                        JOptionPane.showMessageDialog(mainPanel, "Preencha a chave PIX.", "Aviso", JOptionPane.WARNING_MESSAGE);
+                        return;
+                    }
+                } else if (modalidade == 1) {
+                    Conta destinoConta = (Conta) cmbContaDestinoInterna.getSelectedItem();
+                    if (destinoConta == null) {
+                        JOptionPane.showMessageDialog(mainPanel, "Selecione uma conta destino.", "Aviso", JOptionPane.WARNING_MESSAGE);
+                        return;
+                    }
+                    destinoReal = String.valueOf(destinoConta.getIdConta());
+                } else {
+                    // TED
+                    String banco = txtTedBanco.getText().trim();
+                    String agencia = txtTedAgencia.getText().trim();
+                    String conta = txtTedConta.getText().trim();
+                    String digito = txtTedDigito.getText().trim();
+                    String cpfCnpj = txtTedCpf.getText().trim();
+                    if (banco.isEmpty() || agencia.isEmpty() || conta.isEmpty() || digito.isEmpty() || cpfCnpj.isEmpty()) {
+                        JOptionPane.showMessageDialog(mainPanel, "Preencha TODOS os campos do formulário de TED.", "Aviso", JOptionPane.WARNING_MESSAGE);
+                        return;
+                    }
+                    destinoReal = conta;
+                }
+
+                String tipoTexto = modalidade == 0 ? "PIX" : (modalidade == 1 ? "INTERNA" : "TED");
+
+                // Agendamento
+                if (chkAgendar.isSelected()) {
+                    String dataStr = txtData.getText().trim();
+                    java.time.format.DateTimeFormatter fmtInput = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy");
+                    java.time.LocalDate dataAgendada = java.time.LocalDate.parse(dataStr, fmtInput);
+                    if (!dataAgendada.isAfter(java.time.LocalDate.now())) {
+                        JOptionPane.showMessageDialog(mainPanel, "A data deve ser futura.", "Erro", JOptionPane.ERROR_MESSAGE);
+                        return;
+                    }
+                    controller.agendarTransferencia(idContaOrigem, tipoTexto, destinoReal, valor, dataAgendada);
+                    JOptionPane.showMessageDialog(mainPanel, "Agendamento realizado com sucesso!", "Sucesso", JOptionPane.INFORMATION_MESSAGE);
+                } else {
+                    // Envio imediato
+                    if (modalidade == 0) {
+                        controller.transferenciaPIX(idContaOrigem, destinoReal, valor);
+                        JOptionPane.showMessageDialog(mainPanel, "PIX efetuado!", "Sucesso", JOptionPane.INFORMATION_MESSAGE);
+                    } else if (modalidade == 1) {
+                        int idDestino = Integer.parseInt(destinoReal);
+                        controller.transferenciaInterna(idContaOrigem, idDestino, valor);
+                        JOptionPane.showMessageDialog(mainPanel, "Transferência interna concluída!", "Sucesso", JOptionPane.INFORMATION_MESSAGE);
+                    } else {
+                        // TED com todos os campos
+                        String banco = txtTedBanco.getText().trim();
+                        String agencia = txtTedAgencia.getText().trim();
+                        String conta = txtTedConta.getText().trim();
+                        String digito = txtTedDigito.getText().trim();
+                        String cpfCnpj = txtTedCpf.getText().trim();
+                        controller.transferenciaTED(idContaOrigem, banco, agencia, conta, digito, cpfCnpj, valor);
+                        JOptionPane.showMessageDialog(mainPanel, "TED enviada com sucesso!", "Sucesso", JOptionPane.INFORMATION_MESSAGE);
+                    }
+                }
+
+                // Limpeza
+                txtPixDestino.setText("");
+                txtTedBanco.setText("");
+                txtTedAgencia.setText("");
+                txtTedConta.setText("");
+                txtTedDigito.setText("");
+                txtTedCpf.setText("");
+                txtValor.setText("");
+                txtData.setText("");
+                chkAgendar.setSelected(false);
+                lblData.setEnabled(false);
+                txtData.setEnabled(false);
+                cmbContaDestinoInterna.setSelectedIndex(0);
+
+            } catch (java.time.format.DateTimeParseException ex) {
+                JOptionPane.showMessageDialog(mainPanel, "Data inválida! Use DD/MM/AAAA.", "Erro", JOptionPane.ERROR_MESSAGE);
+            } catch (NumberFormatException ex) {
+                JOptionPane.showMessageDialog(mainPanel, "Valor ou número de conta inválido.", "Erro", JOptionPane.ERROR_MESSAGE);
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(mainPanel, "Erro na operação: " + ex.getMessage(), "Erro", JOptionPane.ERROR_MESSAGE);
+            }
+        });
+
+        // ==========================================
+        // ABA 2: HISTÓRICO DE AGENDAMENTOS
+        // ==========================================
+        JPanel painelAgendamentos = new JPanel(new BorderLayout(0, 15));
+        painelAgendamentos.setBackground(Color.WHITE);
+        painelAgendamentos.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+
+        JLabel lblTituloAgendados = new JLabel("Transferências agendadas desta conta");
+        lblTituloAgendados.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        painelAgendamentos.add(lblTituloAgendados, BorderLayout.NORTH);
+
+        String[] colunasAgendamento = {"ID", "Data Programada", "Modalidade - Destino", "Valor", "Status"};
+        DefaultTableModel modeloAgendamento = new DefaultTableModel(colunasAgendamento, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) { return false; }
+        };
+
+        JTable tabelaAgendados = new JTable(modeloAgendamento);
+        tabelaAgendados.setRowHeight(32);
+        tabelaAgendados.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        tabelaAgendados.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 13));
+        tabelaAgendados.getTableHeader().setBackground(new Color(242, 244, 248));
+
+        Runnable recarregarTabelaAgendamentos = () -> {
+            modeloAgendamento.setRowCount(0);
+            Conta contaAtual = (Conta) cmbContaOrigem.getSelectedItem();
+            if (contaAtual != null) {
+                try {
+                    List<AgendamentoTransferencia> agendados = controller.listarAgendamentosCliente(contaAtual.getIdConta());
+                    if (agendados != null && !agendados.isEmpty()) {
+                        java.time.format.DateTimeFormatter fmt = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy");
+                        java.text.NumberFormat fmtMoeda = java.text.NumberFormat.getCurrencyInstance(new java.util.Locale("pt", "BR"));
+                        for (AgendamentoTransferencia a : agendados) {
+                            modeloAgendamento.addRow(new Object[]{
+                                a.getIdAgendamento(),
+                                a.getDataAgendada() != null ? a.getDataAgendada().format(fmt) : "-",
+                                a.getTipoTransferencia() + " - " + a.getDadosDestino(),
+                                fmtMoeda.format(a.getValor()),
+                                a.getStatus() != null ? a.getStatus().toString() : "AGENDADO"
+                            });
+                        }
+                    } else {
+                        modeloAgendamento.addRow(new Object[]{"-", "Nenhum agendamento para esta conta", "-", "-", "-"});
+                    }
+                } catch (Exception ex) {
+                    modeloAgendamento.addRow(new Object[]{"Erro", "Falha ao carregar", ex.getMessage(), "-", "-"});
+                }
+            }
+        };
+
+        cmbContaOrigem.addActionListener(e -> recarregarTabelaAgendamentos.run());
+        recarregarTabelaAgendamentos.run();
+
+        JScrollPane scrollAgendados = new JScrollPane(tabelaAgendados);
+        scrollAgendados.getViewport().setBackground(Color.WHITE);
+        painelAgendamentos.add(scrollAgendados, BorderLayout.CENTER);
+
+        abasInternas.addTab("Enviar / Agendar Dinheiro", painelEnviar);
+        abasInternas.addTab("Histórico de Agendamentos", painelAgendamentos);
+
+        mainPanel.add(abasInternas, BorderLayout.CENTER);
+        return mainPanel;
     }
 
     // ================== PAGAMENTOS ==================
     private JPanel criarPainelPagamentos() {
-        JPanel painelPrincipal = new JPanel(new BorderLayout());
-        JPanel conteudo = new JPanel(new GridBagLayout());
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(8, 8, 8, 8);
-        gbc.anchor = GridBagConstraints.WEST;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.gridwidth = 1;
+            JPanel mainPanel = new JPanel(new BorderLayout());
+            mainPanel.setBackground(Color.WHITE);
 
-        int linha = 0;
+            JTabbedPane abasPagamento = new JTabbedPane();
+            abasPagamento.setFont(new Font("Segoe UI", Font.BOLD, 13));
 
-        JLabel titulo = new JLabel("Pagamentos");
-        titulo.setFont(new Font("Arial", Font.BOLD, 16));
-        gbc.gridy = linha; gbc.gridx = 0; gbc.gridwidth = 2;
-        conteudo.add(titulo, gbc);
-        linha++;
+            // -------------------------------------------------------------------------
+            // ABA 1: Pagar Conta com Linha Digitável
+            // Campos: Conta Débito, Linha Digitável, Valor
+            // -------------------------------------------------------------------------
+            JPanel pnlLinhaDigitavel = new JPanel(new GridBagLayout());
+            pnlLinhaDigitavel.setBackground(Color.WHITE);
+            GridBagConstraints gbc1 = new GridBagConstraints();
+            gbc1.insets = new Insets(10, 10, 10, 10); gbc1.fill = GridBagConstraints.HORIZONTAL;
 
-        // Pagar Conta
-        gbc.gridwidth = 2;
-        gbc.gridy = linha; gbc.gridx = 0;
-        conteudo.add(new JLabel("Pagar Conta com Linha Digitável"), gbc);
-        linha++;
+            gbc1.gridx = 0; gbc1.gridy = 0;
+            pnlLinhaDigitavel.add(new JLabel("Conta Débito:"), gbc1);
+            JComboBox<Conta> cmbContaDebitoLinha = new JComboBox<>();
+            for (Conta c : contas) cmbContaDebitoLinha.addItem(c);
+            gbc1.gridx = 1;
+            pnlLinhaDigitavel.add(cmbContaDebitoLinha, gbc1);
 
-        gbc.gridwidth = 1;
-        gbc.gridy = linha; gbc.gridx = 0;
-        conteudo.add(new JLabel("Conta Débito:"), gbc);
-        cmbContaPagamento = new JComboBox<>();
-        gbc.gridx = 1;
-        conteudo.add(cmbContaPagamento, gbc);
-        linha++;
+            gbc1.gridx = 0; gbc1.gridy = 1;
+            pnlLinhaDigitavel.add(new JLabel("Linha Digitável:"), gbc1);
+            JTextField txtLinhaDig = new JTextField(20);
+            gbc1.gridx = 1;
+            pnlLinhaDigitavel.add(txtLinhaDig, gbc1);
 
-        gbc.gridy = linha; gbc.gridx = 0;
-        conteudo.add(new JLabel("Linha Digitável:"), gbc);
-        JTextField txtLinha = new JTextField(30);
-        gbc.gridx = 1;
-        conteudo.add(txtLinha, gbc);
-        linha++;
+            gbc1.gridx = 0; gbc1.gridy = 2;
+            pnlLinhaDigitavel.add(new JLabel("Valor (R$):"), gbc1);
+            JTextField txtValorLinha = new JTextField(10);
+            gbc1.gridx = 1;
+            pnlLinhaDigitavel.add(txtValorLinha, gbc1);
 
-        gbc.gridy = linha; gbc.gridx = 0;
-        conteudo.add(new JLabel("Valor:"), gbc);
-        JTextField txtValorConta = new JTextField(10);
-        gbc.gridx = 1;
-        conteudo.add(txtValorConta, gbc);
-        linha++;
+            JButton btnPagarLinha = new JButton("Pagar Conta");
+            btnPagarLinha.setBackground(new Color(46, 204, 113));
+            btnPagarLinha.setForeground(Color.WHITE);
+            gbc1.gridx = 0; gbc1.gridy = 3; gbc1.gridwidth = 2;
+            pnlLinhaDigitavel.add(btnPagarLinha, gbc1);
 
-        JButton btnPagarConta = new JButton("Pagar Conta");
-        gbc.gridy = linha; gbc.gridx = 0; gbc.gridwidth = 2;
-        btnPagarConta.addActionListener(e -> {
-            try {
-                Conta c = (Conta) cmbContaPagamento.getSelectedItem();
-                BigDecimal valor = new BigDecimal(txtValorConta.getText().replace(",", "."));
-                controller.pagarConta(c.getIdConta(), txtLinha.getText(), valor);
-                JOptionPane.showMessageDialog(this, "Conta paga com sucesso!");
-                carregarSaldo();
-                txtValorConta.setText("");
-            } catch (Exception ex) {
-                JOptionPane.showMessageDialog(this, "Erro: " + ex.getMessage(), "Erro", JOptionPane.ERROR_MESSAGE);
-            }
-        });
-        conteudo.add(btnPagarConta, gbc);
-        linha++;
+            btnPagarLinha.addActionListener(e -> {
+                try {
+                    Conta c = (Conta) cmbContaDebitoLinha.getSelectedItem();
+                    String linha = txtLinhaDig.getText().trim();
+                    BigDecimal valor = new BigDecimal(txtValorLinha.getText().trim().replace(",", "."));
 
-        // Separador
-        gbc.gridy = linha; gbc.gridx = 0; gbc.gridwidth = 2;
-        conteudo.add(new JSeparator(), gbc);
-        linha++;
-
-        // Pagar Fatura Cartão
-        gbc.gridwidth = 2;
-        gbc.gridy = linha; gbc.gridx = 0;
-        conteudo.add(new JLabel("Pagar Fatura de Cartão de Crédito"), gbc);
-        linha++;
-
-        gbc.gridwidth = 1;
-        gbc.gridy = linha; gbc.gridx = 0;
-        conteudo.add(new JLabel("ID da Fatura:"), gbc);
-        JTextField txtIdFatura = new JTextField(10);
-        gbc.gridx = 1;
-        conteudo.add(txtIdFatura, gbc);
-        linha++;
-
-        JButton btnPagarFatura = new JButton("Pagar Fatura");
-        gbc.gridy = linha; gbc.gridx = 0; gbc.gridwidth = 2;
-        btnPagarFatura.addActionListener(e -> {
-            try {
-                Conta c = (Conta) cmbContaPagamento.getSelectedItem();
-                int idFatura = Integer.parseInt(txtIdFatura.getText());
-                controller.pagarFaturaCartao(c.getIdConta(), idFatura);
-                JOptionPane.showMessageDialog(this, "Fatura paga com sucesso!");
-                carregarSaldo();
-                carregarTabelaFaturas();
-            } catch (Exception ex) {
-                JOptionPane.showMessageDialog(this, "Erro: " + ex.getMessage(), "Erro", JOptionPane.ERROR_MESSAGE);
-            }
-        });
-        conteudo.add(btnPagarFatura, gbc);
-        linha++;
-
-        // Separador
-        gbc.gridy = linha; gbc.gridx = 0; gbc.gridwidth = 2;
-        conteudo.add(new JSeparator(), gbc);
-        linha++;
-
-        // PIX QR Code
-        gbc.gridwidth = 2;
-        gbc.gridy = linha; gbc.gridx = 0;
-        conteudo.add(new JLabel("Pagamento via PIX QR Code"), gbc);
-        linha++;
-
-        gbc.gridwidth = 1;
-        gbc.gridy = linha; gbc.gridx = 0;
-        conteudo.add(new JLabel("QR Code (texto):"), gbc);
-        JTextField txtQRCode = new JTextField(30);
-        gbc.gridx = 1;
-        conteudo.add(txtQRCode, gbc);
-        linha++;
-
-        gbc.gridy = linha; gbc.gridx = 0;
-        conteudo.add(new JLabel("Valor:"), gbc);
-        JTextField txtValorQR = new JTextField(10);
-        gbc.gridx = 1;
-        conteudo.add(txtValorQR, gbc);
-        linha++;
-
-        JButton btnPagarQR = new JButton("Pagar com PIX");
-        gbc.gridy = linha; gbc.gridx = 0; gbc.gridwidth = 2;
-        btnPagarQR.addActionListener(e -> {
-            try {
-                Conta c = (Conta) cmbContaPagamento.getSelectedItem();
-                BigDecimal valor = new BigDecimal(txtValorQR.getText().replace(",", "."));
-                controller.pagarPIXQRCode(c.getIdConta(), txtQRCode.getText(), valor);
-                JOptionPane.showMessageDialog(this, "Pagamento PIX realizado com sucesso!");
-                carregarSaldo();
-                txtValorQR.setText("");
-            } catch (Exception ex) {
-                JOptionPane.showMessageDialog(this, "Erro: " + ex.getMessage(), "Erro", JOptionPane.ERROR_MESSAGE);
-            }
-        });
-        conteudo.add(btnPagarQR, gbc);
-        linha++;
-
-        // Separador
-        gbc.gridy = linha; gbc.gridx = 0; gbc.gridwidth = 2;
-        conteudo.add(new JSeparator(), gbc);
-        linha++;
-
-        // Pagamento com Cartão
-        gbc.gridwidth = 2;
-        gbc.gridy = linha; gbc.gridx = 0;
-        conteudo.add(new JLabel("Pagamento com Cartão de Crédito"), gbc);
-        linha++;
-
-        gbc.gridwidth = 1;
-        gbc.gridy = linha; gbc.gridx = 0;
-        conteudo.add(new JLabel("Selecione o Cartão:"), gbc);
-        JComboBox<CartaoCredito> cmbCartaoPagamento = new JComboBox<>();
-        try {
-            List<CartaoCredito> cartoes = controller.listarCartoesCliente(clienteLogado.getIdCliente());
-            for (CartaoCredito c : cartoes) {
-                if ("ATIVO".equals(c.getStatus())) {
-                    cmbCartaoPagamento.addItem(c);
+                    controller.pagarConta(c.getIdConta(), linha, valor);
+                    JOptionPane.showMessageDialog(mainPanel, "Conta paga com sucesso!");
+                } catch (Exception ex) {
+                    JOptionPane.showMessageDialog(mainPanel, "Erro: " + ex.getMessage(), "Erro", JOptionPane.ERROR_MESSAGE);
                 }
-            }
-        } catch (Exception ex) {
-            // ignora
-        }
-        gbc.gridx = 1;
-        conteudo.add(cmbCartaoPagamento, gbc);
-        linha++;
+            });
 
-        gbc.gridy = linha; gbc.gridx = 0;
-        conteudo.add(new JLabel("Valor da Compra:"), gbc);
-        JTextField txtValorCartao = new JTextField(10);
-        gbc.gridx = 1;
-        conteudo.add(txtValorCartao, gbc);
-        linha++;
+            // -------------------------------------------------------------------------
+            // ABA 2: Pagar Fatura de Cartão de Crédito
+            // Campos: Conta Débito, Fatura (Exibindo valor em aberto)
+            // -------------------------------------------------------------------------
+            JPanel pnlFatura = new JPanel(new GridBagLayout());
+            pnlFatura.setBackground(Color.WHITE);
+            GridBagConstraints gbc2 = new GridBagConstraints();
+            gbc2.insets = new Insets(10, 10, 10, 10); gbc2.fill = GridBagConstraints.HORIZONTAL;
 
-        gbc.gridy = linha; gbc.gridx = 0;
-        conteudo.add(new JLabel("Descrição:"), gbc);
-        JTextField txtDescCartao = new JTextField(20);
-        gbc.gridx = 1;
-        conteudo.add(txtDescCartao, gbc);
-        linha++;
+            gbc2.gridx = 0; gbc2.gridy = 0;
+            pnlFatura.add(new JLabel("Conta Débito:"), gbc2);
+            JComboBox<Conta> cmbContaDebitoFat = new JComboBox<>();
+            for (Conta c : contas) cmbContaDebitoFat.addItem(c);
+            gbc2.gridx = 1;
+            pnlFatura.add(cmbContaDebitoFat, gbc2);
 
-        gbc.gridy = linha; gbc.gridx = 0;
-        conteudo.add(new JLabel("Parcelas (1-12):"), gbc);
-        JTextField txtParcelasCartao = new JTextField(3);
-        gbc.gridx = 1;
-        conteudo.add(txtParcelasCartao, gbc);
-        linha++;
+            gbc2.gridx = 0; gbc2.gridy = 1;
+            pnlFatura.add(new JLabel("Fatura em Aberto:"), gbc2);
+            JComboBox<FaturaCartao> cmbFaturas = new JComboBox<>();
+            cmbFaturas.setRenderer(new DefaultListCellRenderer() {
+                @Override
+                public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
+                    super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+                    if (value instanceof FaturaCartao) {
+                        FaturaCartao f = (FaturaCartao) value;
+                        setText("Fatura " + f.getIdFatura() + " - Valor: R$ " + f.getValorTotal());
+                    }
+                    return this;
+                }
+            });
+            gbc2.gridx = 1;
+            pnlFatura.add(cmbFaturas, gbc2);
 
-        JButton btnPagarCartao = new JButton("Confirmar Compra no Cartão");
-        gbc.gridy = linha; gbc.gridx = 0; gbc.gridwidth = 2;
-        btnPagarCartao.addActionListener(e -> {
+            JButton btnPagarFat = new JButton("Pagar Fatura");
+            btnPagarFat.setBackground(new Color(108, 92, 231));
+            btnPagarFat.setForeground(Color.WHITE);
+            gbc2.gridx = 0; gbc2.gridy = 2; gbc2.gridwidth = 2;
+            pnlFatura.add(btnPagarFat, gbc2);
+
+            btnPagarFat.addActionListener(e -> {
+                try {
+                    Conta c = (Conta) cmbContaDebitoFat.getSelectedItem();
+                    FaturaCartao f = (FaturaCartao) cmbFaturas.getSelectedItem();
+
+                    controller.pagarFaturaCartao(c.getIdConta(), f.getIdFatura());
+                    JOptionPane.showMessageDialog(mainPanel, "Fatura paga com sucesso!");
+                } catch (Exception ex) {
+                    JOptionPane.showMessageDialog(mainPanel, "Erro: " + ex.getMessage(), "Erro", JOptionPane.ERROR_MESSAGE);
+                }
+            });
+
+            // -------------------------------------------------------------------------
+            // ABA 3: Pagamento PIX QR Code
+            // Campos: Conta Débito, QR Code, Valor
+            // -------------------------------------------------------------------------
+            JPanel pnlPix = new JPanel(new GridBagLayout());
+            pnlPix.setBackground(Color.WHITE);
+            GridBagConstraints gbc3 = new GridBagConstraints();
+            gbc3.insets = new Insets(10, 10, 10, 10); gbc3.fill = GridBagConstraints.HORIZONTAL;
+
+            gbc3.gridx = 0; gbc3.gridy = 0;
+            pnlPix.add(new JLabel("Conta Débito:"), gbc3);
+            JComboBox<Conta> cmbContaPix = new JComboBox<>();
+            for (Conta c : contas) cmbContaPix.addItem(c);
+            gbc3.gridx = 1;
+            pnlPix.add(cmbContaPix, gbc3);
+
+            gbc3.gridx = 0; gbc3.gridy = 1;
+            pnlPix.add(new JLabel("QR Code (Copia e Cola):"), gbc3);
+            JTextField txtQRCode = new JTextField(20);
+            gbc3.gridx = 1;
+            pnlPix.add(txtQRCode, gbc3);
+
+            gbc3.gridx = 0; gbc3.gridy = 2;
+            pnlPix.add(new JLabel("Valor (R$):"), gbc3);
+            JTextField txtValorPix = new JTextField(10);
+            gbc3.gridx = 1;
+            pnlPix.add(txtValorPix, gbc3);
+
+            JButton btnPagarPix = new JButton("Pagar via PIX");
+            btnPagarPix.setBackground(new Color(108, 92, 231));
+            btnPagarPix.setForeground(Color.WHITE);
+            gbc3.gridx = 0; gbc3.gridy = 3; gbc3.gridwidth = 2;
+            pnlPix.add(btnPagarPix, gbc3);
+
+            btnPagarPix.addActionListener(e -> {
+                try {
+                    Conta c = (Conta) cmbContaPix.getSelectedItem();
+                    String qr = txtQRCode.getText().trim();
+                    BigDecimal valor = new BigDecimal(txtValorPix.getText().trim().replace(",", "."));
+
+                    controller.pagarPIXQRCode(c.getIdConta(), qr, valor);
+                    JOptionPane.showMessageDialog(mainPanel, "PIX realizado com sucesso!");
+                } catch (Exception ex) {
+                    JOptionPane.showMessageDialog(mainPanel, "Erro: " + ex.getMessage(), "Erro", JOptionPane.ERROR_MESSAGE);
+                }
+            });
+
+            // -------------------------------------------------------------------------
+            // ABA 4: Pagamento com Cartão de Crédito
+            // Campos: Cartão (exibindo limite), Descrição, Valor, Parcelas
+            // -------------------------------------------------------------------------
+            JPanel pnlCartao = new JPanel(new GridBagLayout());
+            pnlCartao.setBackground(Color.WHITE);
+            GridBagConstraints gbc4 = new GridBagConstraints();
+            gbc4.insets = new Insets(10, 10, 10, 10); gbc4.fill = GridBagConstraints.HORIZONTAL;
+
+            gbc4.gridx = 0; gbc4.gridy = 0;
+            pnlCartao.add(new JLabel("Selecionar Cartão:"), gbc4);
+            JComboBox<CartaoCredito> cmbCartoes = new JComboBox<>();
+            cmbCartoes.setRenderer(new DefaultListCellRenderer() {
+                @Override
+                public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
+                    super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+                    if (value instanceof CartaoCredito) {
+                        CartaoCredito c = (CartaoCredito) value;
+                        setText("Cartão " + c.getIdCartao() + " - Limite Utilizado: R$ " + c.getLimiteUtilizado());
+                    }
+                    return this;
+                }
+            });
+            gbc4.gridx = 1;
+            pnlCartao.add(cmbCartoes, gbc4);
+
+            gbc4.gridx = 0; gbc4.gridy = 1;
+            pnlCartao.add(new JLabel("Descrição da Compra:"), gbc4);
+            JTextField txtDesc = new JTextField(20);
+            gbc4.gridx = 1;
+            pnlCartao.add(txtDesc, gbc4);
+
+            gbc4.gridx = 0; gbc4.gridy = 2;
+            pnlCartao.add(new JLabel("Valor (R$):"), gbc4);
+            JTextField txtValorCartao = new JTextField(10);
+            gbc4.gridx = 1;
+            pnlCartao.add(txtValorCartao, gbc4);
+
+            gbc4.gridx = 0; gbc4.gridy = 3;
+            pnlCartao.add(new JLabel("Parcelas:"), gbc4);
+            JSpinner spnParcelas = new JSpinner(new SpinnerNumberModel(1, 1, 12, 1));
+            gbc4.gridx = 1;
+            pnlCartao.add(spnParcelas, gbc4);
+
+            JButton btnComprarCartao = new JButton("Realizar Pagamento");
+            btnComprarCartao.setBackground(new Color(108, 92, 231));
+            btnComprarCartao.setForeground(Color.WHITE);
+            gbc4.gridx = 0; gbc4.gridy = 4; gbc4.gridwidth = 2;
+            pnlCartao.add(btnComprarCartao, gbc4);
+
+            btnComprarCartao.addActionListener(e -> {
+                try {
+                    CartaoCredito c = (CartaoCredito) cmbCartoes.getSelectedItem();
+                    String desc = txtDesc.getText().trim();
+                    BigDecimal valor = new BigDecimal(txtValorCartao.getText().trim().replace(",", "."));
+                    int parcelas = (Integer) spnParcelas.getValue();
+
+                    controller.pagarComCartao(c.getIdCartao(), valor, desc, parcelas);
+                    JOptionPane.showMessageDialog(mainPanel, "Compra no cartão aprovada!");
+                } catch (Exception ex) {
+                    JOptionPane.showMessageDialog(mainPanel, "Erro: " + ex.getMessage(), "Erro", JOptionPane.ERROR_MESSAGE);
+                }
+            });
+
+            // -------------------------------------------------------------------------
+            // CARREGAMENTO DOS DADOS PARA AS COMBOS
+            // -------------------------------------------------------------------------
             try {
-                CartaoCredito cartao = (CartaoCredito) cmbCartaoPagamento.getSelectedItem();
-                if (cartao == null) throw new Exception("Selecione um cartão.");
-                BigDecimal valor = new BigDecimal(txtValorCartao.getText().replace(",", "."));
-                String descricao = txtDescCartao.getText().trim();
-                if (descricao.isEmpty()) descricao = "Compra no cartão";
-                int parcelas = Integer.parseInt(txtParcelasCartao.getText());
-                if (parcelas < 1 || parcelas > 12) throw new Exception("Parcelas deve ser entre 1 e 12.");
-                controller.pagarComCartao(cartao.getIdCartao(), valor, descricao, parcelas);
-                JOptionPane.showMessageDialog(this, "Compra realizada com sucesso!");
-                txtValorCartao.setText("");
-                txtDescCartao.setText("");
-                txtParcelasCartao.setText("");
-                carregarTabelaCartoes();
-                carregarTabelaFaturas();
-            } catch (Exception ex) {
-                JOptionPane.showMessageDialog(this, "Erro: " + ex.getMessage(), "Erro", JOptionPane.ERROR_MESSAGE);
-            }
-        });
-        conteudo.add(btnPagarCartao, gbc);
+                List<FaturaCartao> faturas = controller.listarFaturasCliente(clienteLogado.getIdCliente());
+                if (faturas != null) for (FaturaCartao f : faturas) cmbFaturas.addItem(f);
 
-        JScrollPane scroll = new JScrollPane(conteudo);
-        painelPrincipal.add(scroll, BorderLayout.CENTER);
-        return painelPrincipal;
-    }
+                List<CartaoCredito> cartoes = controller.listarCartoesCliente(clienteLogado.getIdCliente());
+                if (cartoes != null) for (CartaoCredito c : cartoes) cmbCartoes.addItem(c);
+            } catch (Exception ex) {
+                System.err.println("Erro ao carregar faturas/cartões: " + ex.getMessage());
+            }
+
+            abasPagamento.addTab("Linha Digitável", pnlLinhaDigitavel);
+            abasPagamento.addTab("Fatura do Cartão", pnlFatura);
+            abasPagamento.addTab("PIX QR Code", pnlPix);
+            abasPagamento.addTab("Pagamento com Cartão", pnlCartao);
+
+            mainPanel.add(abasPagamento, BorderLayout.CENTER);
+            return mainPanel;
+        }
 
     // ================== EMPRÉSTIMOS ==================
     private JPanel criarPainelEmprestimos() {
@@ -1959,87 +2040,295 @@ public class TelaPrincipal extends JFrame {
     }
 
     // ================== CONFIGURAÇÕES ==================
+    
+
+        private void atualizarTopo() {
+        // Atualiza a barra superior com o novo nome, se necessário
+        Component[] comps = getContentPane().getComponents();
+        for (Component c : comps) {
+            if (c instanceof JPanel && ((JPanel) c).getLayout() instanceof FlowLayout) {
+                JPanel top = (JPanel) c;
+                // Encontrar o JLabel com o nome
+                for (Component sub : top.getComponents()) {
+                    if (sub instanceof JLabel) {
+                        JLabel lbl = (JLabel) sub;
+                        if (lbl.getText().contains("Cliente:")) {
+                            lbl.setText("Cliente: " + clienteLogado.getNomeRazao() + " | " +
+                                    (clienteLogado.getTipoPessoa() == TipoPessoa.PF ? "PF" : "PJ"));
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+        
+        
     private JPanel criarPainelConfiguracoes() {
         JPanel panel = new JPanel(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(8, 8, 8, 8);
         gbc.anchor = GridBagConstraints.WEST;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.gridwidth = 1;
 
         int y = 0;
+
+        // ========== SEÇÃO ALERTAS ==========
         gbc.gridy = y; gbc.gridx = 0; gbc.gridwidth = 2;
-        panel.add(new JLabel("Preferências de Alertas"), gbc);
+        JLabel lblAlertas = new JLabel("Alertas");
+        lblAlertas.setFont(new Font("Arial", Font.BOLD, 14));
+        panel.add(lblAlertas, gbc);
         y++;
 
         gbc.gridwidth = 1;
-        JCheckBox chkSaldoBaixo = new JCheckBox("Alertar saldo baixo");
+        JCheckBox chkSaldoBaixo = new JCheckBox("Alertar saldo baixo (pop-up)");
         gbc.gridy = y; gbc.gridx = 0; gbc.gridwidth = 2;
         panel.add(chkSaldoBaixo, gbc);
         y++;
 
+        gbc.gridwidth = 1;
         gbc.gridy = y; gbc.gridx = 0;
-        panel.add(new JLabel("Limite saldo:"), gbc);
+        panel.add(new JLabel("Limite (R$):"), gbc);
         JTextField txtLimiteSaldo = new JTextField(10);
         gbc.gridx = 1;
         panel.add(txtLimiteSaldo, gbc);
         y++;
 
-        JCheckBox chkVencimento = new JCheckBox("Alertar vencimento de contas");
+        // ========== SEÇÃO DADOS CADASTRAIS ==========
         gbc.gridy = y; gbc.gridx = 0; gbc.gridwidth = 2;
-        panel.add(chkVencimento, gbc);
+        JLabel lblDados = new JLabel("Dados Cadastrais");
+        lblDados.setFont(new Font("Arial", Font.BOLD, 14));
+        panel.add(lblDados, gbc);
         y++;
 
-        JCheckBox chkExtrato = new JCheckBox("Alertar extrato disponível");
-        gbc.gridy = y; gbc.gridx = 0; gbc.gridwidth = 2;
-        panel.add(chkExtrato, gbc);
+        gbc.gridwidth = 1;
+        gbc.gridy = y; gbc.gridx = 0;
+        panel.add(new JLabel("Nome/Razão Social:"), gbc);
+        JTextField txtNome = new JTextField(clienteLogado.getNomeRazao(), 20);
+        gbc.gridx = 1;
+        panel.add(txtNome, gbc);
         y++;
 
-        gbc.gridy = y; gbc.gridx = 0; gbc.gridwidth = 2;
-        panel.add(new JLabel("Canais de notificação:"), gbc);
-        y++;
-        JCheckBox chkEmail = new JCheckBox("E-mail");
-        JCheckBox chkSms = new JCheckBox("SMS");
-        JCheckBox chkPush = new JCheckBox("Push");
-        JPanel canais = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        canais.add(chkEmail);
-        canais.add(chkSms);
-        canais.add(chkPush);
-        gbc.gridy = y; gbc.gridx = 0; gbc.gridwidth = 2;
-        panel.add(canais, gbc);
+        gbc.gridy = y; gbc.gridx = 0;
+        panel.add(new JLabel("E-mail:"), gbc);
+        JTextField txtEmail = new JTextField(clienteLogado.getEmail(), 20);
+        gbc.gridx = 1;
+        panel.add(txtEmail, gbc);
         y++;
 
-        JButton btnSalvarConfig = new JButton("Salvar Preferências");
+        gbc.gridy = y; gbc.gridx = 0;
+        panel.add(new JLabel("Telefone:"), gbc);
+        JTextField txtTelefone = new JTextField(clienteLogado.getTelefone(), 20);
+        gbc.gridx = 1;
+        panel.add(txtTelefone, gbc);
+        y++;
+
+        gbc.gridy = y; gbc.gridx = 0;
+        panel.add(new JLabel("Endereço:"), gbc);
+        JTextField txtEndereco = new JTextField(clienteLogado.getEndereco(), 20);
+        gbc.gridx = 1;
+        panel.add(txtEndereco, gbc);
+        y++;
+
+        gbc.gridy = y; gbc.gridx = 0;
+        panel.add(new JLabel("Nova Senha:"), gbc);
+        JPasswordField txtNovaSenha = new JPasswordField(20);
+        gbc.gridx = 1;
+        panel.add(txtNovaSenha, gbc);
+        y++;
+
+        gbc.gridy = y; gbc.gridx = 0;
+        panel.add(new JLabel("Confirmar Senha:"), gbc);
+        JPasswordField txtConfirmarSenha = new JPasswordField(20);
+        gbc.gridx = 1;
+        panel.add(txtConfirmarSenha, gbc);
+        y++;
+
+        JButton btnSalvarDados = new JButton("Salvar Alterações");
         gbc.gridy = y; gbc.gridx = 0; gbc.gridwidth = 2;
-        btnSalvarConfig.addActionListener(e -> {
+        btnSalvarDados.addActionListener(e -> {
+            try {
+                String nome = txtNome.getText().trim();
+                String email = txtEmail.getText().trim();
+                String telefone = txtTelefone.getText().trim();
+                String endereco = txtEndereco.getText().trim();
+                String novaSenha = new String(txtNovaSenha.getPassword());
+                String confirmar = new String(txtConfirmarSenha.getPassword());
+
+                if (nome.isEmpty() || email.isEmpty()) {
+                    JOptionPane.showMessageDialog(this, "Nome e e-mail são obrigatórios.");
+                    return;
+                }
+
+                clienteLogado.setNomeRazao(nome);
+                clienteLogado.setEmail(email);
+                clienteLogado.setTelefone(telefone);
+                clienteLogado.setEndereco(endereco);
+
+                if (!novaSenha.isEmpty()) {
+                    if (!novaSenha.equals(confirmar)) {
+                        JOptionPane.showMessageDialog(this, "As senhas não conferem.");
+                        return;
+                    }
+                    // Atualizar senha (hash)
+                    clienteLogado.setSenhaHash(CriptografiaUtil.gerarHash(novaSenha));
+                }
+
+                controller.atualizarCliente(clienteLogado);
+                JOptionPane.showMessageDialog(this, "Dados atualizados com sucesso!");
+                // Atualizar a barra superior
+                atualizarTopo();
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(this, "Erro: " + ex.getMessage(), "Erro", JOptionPane.ERROR_MESSAGE);
+            }
+        });
+        panel.add(btnSalvarDados, gbc);
+        y++;
+
+        // ========== SEÇÃO GERENCIAMENTO DE CONTAS ==========
+        gbc.gridy = y; gbc.gridx = 0; gbc.gridwidth = 2;
+        JLabel lblContas = new JLabel("Gerenciamento de Contas");
+        lblContas.setFont(new Font("Arial", Font.BOLD, 14));
+        panel.add(lblContas, gbc);
+        y++;
+
+        gbc.gridwidth = 1;
+        gbc.gridy = y; gbc.gridx = 0;
+        panel.add(new JLabel("Selecione a conta:"), gbc);
+        JComboBox<Conta> cmbContaEncerrar = new JComboBox<>();
+        for (Conta c : contas) {
+            if (c.getStatus() == StatusConta.ATIVA) {
+                cmbContaEncerrar.addItem(c);
+            }
+        }
+        gbc.gridx = 1;
+        panel.add(cmbContaEncerrar, gbc);
+        y++;
+
+        
+        JButton btnEncerrarConta = new JButton("Encerrar Conta Selecionada");
+        gbc.gridy = y; gbc.gridx = 0; gbc.gridwidth = 2;
+        btnEncerrarConta.addActionListener(e -> {
+            Conta conta = (Conta) cmbContaEncerrar.getSelectedItem();
+            if (conta == null) {
+                JOptionPane.showMessageDialog(TelaPrincipal.this, "Nenhuma conta ativa para encerrar.");
+                return;
+            }
+            int confirm = JOptionPane.showConfirmDialog(TelaPrincipal.this,
+                    "Tem certeza que deseja encerrar a conta " + conta.getNumeroConta() + "?",
+                    "Confirmar Encerramento", JOptionPane.YES_NO_OPTION);
+            if (confirm != JOptionPane.YES_OPTION) return;
+
+            try {
+                Conta destino = null;
+                if (conta.getSaldo().compareTo(BigDecimal.ZERO) > 0) {
+                    JComboBox<Conta> cmbDestino = new JComboBox<>();
+                    for (Conta c : contas) {
+                        if (c.getIdConta() != conta.getIdConta() && c.getStatus() == StatusConta.ATIVA) {
+                            cmbDestino.addItem(c);
+                        }
+                    }
+                    if (cmbDestino.getItemCount() == 0) {
+                        JOptionPane.showMessageDialog(TelaPrincipal.this, "Não há outra conta ativa para transferir o saldo.");
+                        return;
+                    }
+
+                    Object[] options = {"OK", "Cancelar"};
+                    // Usar um JPanel com nome diferente para não conflitar com o panel da tela
+                    JPanel painelDestino = new JPanel(new BorderLayout(5, 5));
+                    painelDestino.add(new JLabel("Saldo remanescente: " + FormatadorUtil.formatarMoeda(conta.getSaldo())), BorderLayout.NORTH);
+                    painelDestino.add(cmbDestino, BorderLayout.CENTER);
+
+                    int result = JOptionPane.showOptionDialog(TelaPrincipal.this, painelDestino, "Transferir Saldo",
+                            JOptionPane.OK_CANCEL_OPTION, JOptionPane.QUESTION_MESSAGE, null,
+                            options, options[0]);
+                    if (result == JOptionPane.OK_OPTION) {
+                        destino = (Conta) cmbDestino.getSelectedItem();
+                    } else {
+                        return;
+                    }
+                }
+
+                controller.encerrarConta(conta.getIdConta(), destino != null ? destino.getIdConta() : 0);
+                JOptionPane.showMessageDialog(TelaPrincipal.this, "Conta encerrada com sucesso!");
+
+                // Atualizar lista de contas
+                contas = controller.buscarContasPorCliente(clienteLogado.getIdCliente());
+                Sessao.getInstance().setContasCliente(contas);
+                atualizarCombosContas();
+                // Atualizar combobox de encerramento
+                cmbContaEncerrar.removeAllItems();
+                for (Conta c : contas) {
+                    if (c.getStatus() == StatusConta.ATIVA) {
+                        cmbContaEncerrar.addItem(c);
+                    }
+                }
+                carregarSaldo();
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(TelaPrincipal.this, "Erro: " + ex.getMessage(), "Erro", JOptionPane.ERROR_MESSAGE);
+            }
+        });
+        panel.add(btnEncerrarConta, gbc);
+        y++;
+
+        // ========== SEÇÃO EXCLUIR USUÁRIO ==========
+        gbc.gridy = y; gbc.gridx = 0; gbc.gridwidth = 2;
+        JLabel lblExcluir = new JLabel("Excluir Usuário");
+        lblExcluir.setFont(new Font("Arial", Font.BOLD, 14));
+        lblExcluir.setForeground(Color.RED);
+        panel.add(lblExcluir, gbc);
+        y++;
+
+        JButton btnExcluirUsuario = new JButton("Excluir Minha Conta (Usuário)");
+        btnExcluirUsuario.setForeground(Color.RED);
+        gbc.gridy = y; gbc.gridx = 0; gbc.gridwidth = 2;
+        btnExcluirUsuario.addActionListener(e -> {
+            int confirm = JOptionPane.showConfirmDialog(this,
+                    "ATENÇÃO: Isso excluirá permanentemente sua conta de usuário e todas as suas contas bancárias. Tem certeza?",
+                    "Confirmar Exclusão", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+            if (confirm == JOptionPane.YES_OPTION) {
+                try {
+                    controller.excluirCliente(clienteLogado.getIdCliente());
+                    JOptionPane.showMessageDialog(this, "Usuário excluído com sucesso.");
+                    logout();
+                } catch (Exception ex) {
+                    JOptionPane.showMessageDialog(this, "Erro: " + ex.getMessage(), "Erro", JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        });
+        panel.add(btnExcluirUsuario, gbc);
+        y++;
+
+        // ========== BOTÃO SALVAR CONFIGURAÇÕES DE ALERTA ==========
+        JButton btnSalvarAlertas = new JButton("Salvar Preferências de Alertas");
+        gbc.gridy = y; gbc.gridx = 0; gbc.gridwidth = 2;
+        btnSalvarAlertas.addActionListener(e -> {
             try {
                 PreferenciaAlertas pref = new PreferenciaAlertas(clienteLogado.getIdCliente());
                 pref.setAlertaSaldoBaixo(chkSaldoBaixo.isSelected());
                 if (chkSaldoBaixo.isSelected() && !txtLimiteSaldo.getText().isEmpty()) {
                     pref.setValorLimiteSaldo(new BigDecimal(txtLimiteSaldo.getText().replace(",", ".")));
+                } else {
+                    pref.setValorLimiteSaldo(null);
                 }
-                pref.setAlertaVencimentoConta(chkVencimento.isSelected());
-                pref.setAlertaExtratoDisponivel(chkExtrato.isSelected());
-                pref.setCanalEmail(chkEmail.isSelected());
-                pref.setCanalSms(chkSms.isSelected());
-                pref.setCanalPush(chkPush.isSelected());
+                // Removemos os outros canais e alertas
                 controller.configurarAlertas(pref);
-                JOptionPane.showMessageDialog(this, "Preferências salvas!");
+                JOptionPane.showMessageDialog(this, "Preferências de alertas salvas!");
             } catch (Exception ex) {
                 JOptionPane.showMessageDialog(this, "Erro: " + ex.getMessage(), "Erro", JOptionPane.ERROR_MESSAGE);
             }
         });
-        panel.add(btnSalvarConfig, gbc);
+        panel.add(btnSalvarAlertas, gbc);
+        y++;
 
+        // Carregar preferências atuais
         try {
             PreferenciaAlertas pref = controller.buscarAlertas(clienteLogado.getIdCliente());
             if (pref != null) {
                 chkSaldoBaixo.setSelected(pref.getAlertaSaldoBaixo());
                 if (pref.getValorLimiteSaldo() != null)
                     txtLimiteSaldo.setText(pref.getValorLimiteSaldo().toString());
-                chkVencimento.setSelected(pref.getAlertaVencimentoConta());
-                chkExtrato.setSelected(pref.getAlertaExtratoDisponivel());
-                chkEmail.setSelected(pref.getCanalEmail());
-                chkSms.setSelected(pref.getCanalSms());
-                chkPush.setSelected(pref.getCanalPush());
             }
         } catch (Exception ex) {
             // ignora
@@ -2047,7 +2336,6 @@ public class TelaPrincipal extends JFrame {
 
         return panel;
     }
-
     private void logout() {
         Sessao.getInstance().limpar();
         new TelaLogin().setVisible(true);

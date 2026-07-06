@@ -2,6 +2,7 @@ com/mycompany/yashin/model/CompraFatura.class
 controller/BancoController.class
 external/BureauInterface$BureauData.class
 com/mycompany/yashin/model/enums/StatusLoteItem.class
+UI/TelaPrincipal$10.class
 dao/EmprestimoDAO.class
 com/mycompany/yashin/model/LogAuditoria.class
 dao/FaturaDAO.class
@@ -35,6 +36,7 @@ com/mycompany/yashin/model/enums/StatusBoleto.class
 Service/NotificacaoService.class
 Service/AutenticacaoService.class
 com/mycompany/yashin/model/PreferenciaAlertas.class
+UI/TelaPrincipal$9.class
 UI/TelaPrincipal.class
 dao/CompraFaturaDAO.class
 util/ConexaoBD.class
@@ -46,6 +48,7 @@ UI/TelaPrincipal$1.class
 Service/RelatorioService.class
 dao/CartaoDAO.class
 dao/LogAuditoriaDAO.class
+UI/TelaPrincipal$12.class
 Service/PagamentoLoteService.class
 com/mycompany/yashin/model/enums/TipoPessoa.class
 com/mycompany/yashin/model/enums/TipoConta.class
@@ -67,6 +70,7 @@ util/CatalogoBancos$BancoInfo.class
 com/mycompany/yashin/model/PagamentoLote.class
 com/mycompany/yashin/model/FaturaCartao.class
 dao/AgendamentoDAO.class
+UI/TelaPrincipal$11.class
 com/mycompany/yashin/model/Cliente.class
 util/FormatadorUtil.class
 com/mycompany/yashin/model/enums/TipoTransacao.class

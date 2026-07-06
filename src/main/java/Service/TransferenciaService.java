@@ -50,6 +50,11 @@ public class TransferenciaService {
         origem.setSaldo(origem.getSaldo().subtract(valor));
         destino.setSaldo(destino.getSaldo().add(valor));
         contaDAO.atualizarSaldo(origem);
+        new NotificacaoService().verificarEAlertarSaldoBaixo(
+        origem.getIdCliente(), 
+        origem.getIdConta(), 
+        origem.getSaldo()
+    );
         contaDAO.atualizarSaldo(destino);
 
         // Registra transação
@@ -79,6 +84,11 @@ public class TransferenciaService {
         // Atualiza saldo
         origem.setSaldo(origem.getSaldo().subtract(valor));
         contaDAO.atualizarSaldo(origem);
+        new NotificacaoService().verificarEAlertarSaldoBaixo(
+        origem.getIdCliente(), 
+        origem.getIdConta(), 
+        origem.getSaldo()
+    );
 
         // Registra transação
         Transacao t = new Transacao();
@@ -107,6 +117,12 @@ public class TransferenciaService {
         // Atualiza saldo
         origem.setSaldo(origem.getSaldo().subtract(valor));
         contaDAO.atualizarSaldo(origem);
+        new NotificacaoService().verificarEAlertarSaldoBaixo(
+        origem.getIdCliente(), 
+        origem.getIdConta(), 
+        origem.getSaldo()
+    );
+
 
         // Registra transação
         Transacao t = new Transacao();

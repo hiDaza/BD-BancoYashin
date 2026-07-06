@@ -172,5 +172,15 @@ public class CartaoService {
     }
     
     
+    public boolean temFaturaEmAberto(int idCliente) throws SQLException {
+        List<FaturaCartao> faturas = faturaDAO.listarPorCliente(idCliente);
+        for (FaturaCartao f : faturas) {
+            if ("ABERTA".equals(f.getStatus()) || "VENCIDA".equals(f.getStatus())) {
+                return true;
+            }
+        }
+        return false;
+    }    
+    
     
 }

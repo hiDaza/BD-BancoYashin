@@ -19,6 +19,7 @@ import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.List;
+import javax.swing.JOptionPane;
 import util.LogUtil;
 
 public class NotificacaoService {
@@ -93,5 +94,21 @@ public class NotificacaoService {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+    public void verificarEAlertarSaldoBaixo(int idCliente, int idConta, BigDecimal saldoAtual) throws Exception {
+    PreferenciaAlertas pref = preferenciaDAO.buscarPorCliente(idCliente);
+    if (pref == null || !pref.getAlertaSaldoBaixo()) return;
+    
+    BigDecimal limite = pref.getValorLimiteSaldo();
+    if (limite != null && saldoAtual.compareTo(limite) < 0) {
+        // Exibe pop-up (usando um JDialog simples)
+        String mensagem = "⚠️ ALERTA: Seu saldo (R$ " + saldoAtual + ") está abaixo do limite de R$ " + limite;
+        mostrarPopUp(mensagem);
+    }
+}
+
+    private void mostrarPopUp(String mensagem) {
+        // Usando JOptionPane é mais simples, mas pode ser um JDialog personalizado
+        JOptionPane.showMessageDialog(null, mensagem, "Alerta de Saldo", JOptionPane.WARNING_MESSAGE);
     }
 }

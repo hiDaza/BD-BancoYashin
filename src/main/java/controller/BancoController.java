@@ -270,6 +270,22 @@ public class BancoController {
     public List<CompraFatura> listarComprasDaFatura(int idFatura) throws Exception {
         return new dao.CompraFaturaDAO().listarPorFatura(idFatura);
     }
+    
+    public void atualizarDadosCliente(Cliente cliente) throws Exception {
+    clienteService.atualizarDados(cliente);
+}
+
+    public void excluirCliente(int idCliente) throws Exception {
+        clienteService.excluirCliente(idCliente);
+    }
+
+    public boolean temEmprestimoAtivo(int idCliente) throws SQLException {
+        return emprestimoService.temEmprestimoAtivo(idCliente);
+    }
+
+    public boolean temFaturaEmAberto(int idCliente) throws SQLException {
+        return cartaoService.temFaturaEmAberto(idCliente);
+    }
 
     
 }
