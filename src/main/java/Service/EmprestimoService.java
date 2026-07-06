@@ -33,7 +33,7 @@ public class EmprestimoService {
 
     // Simulação de consultas externas
     private int consultarScoreBureau(String cpfCnpj) {
-        return 500 + (int)(Math.random() * 500); // 500 a 1000
+        return 500 + (int)(Math.random() * 500); 
     }
 
     private BigDecimal consultarRendaComprometidaSCR(String cpfCnpj) {
@@ -45,7 +45,7 @@ public class EmprestimoService {
             throw new Exception("Valor e prazo devem ser positivos");
         }
 
-        // Taxa simulada baseada em perfil (mock)
+        // Taxa simulada baseada em perfil
         BigDecimal taxaBase = new BigDecimal("1.99");
         BigDecimal juros = taxaBase.divide(new BigDecimal("100"), 4, RoundingMode.HALF_UP);
         BigDecimal fator = BigDecimal.ONE.add(juros);
@@ -56,7 +56,7 @@ public class EmprestimoService {
         sim.setIdCliente(idCliente);
         sim.setValorSolicitado(valor);
         sim.setPrazoMeses(prazoMeses);
-        sim.setStatus(StatusEmprestimo.ANALISE); // não importa muito para simulação
+        sim.setStatus(StatusEmprestimo.ANALISE);
         sim.setTaxaJuros(taxaBase);
         sim.setValorParcela(parcela);
         sim.setNumeroParcelas(prazoMeses);
@@ -72,11 +72,10 @@ public class EmprestimoService {
                 throw new Exception("Prazo deve estar entre 6 e 60 meses");
             }
 
-            // Consulta externa (mock)
+            // Consulta externa
             int score = consultarScoreBureau("cpf");
             BigDecimal comprometimento = consultarRendaComprometidaSCR("cpf");
 
-            // Primeiro, calcula os dados da simulação (mesmo que depois seja negado, vamos guardar)
             BigDecimal taxaBase = new BigDecimal("1.99");
             BigDecimal juros = taxaBase.divide(new BigDecimal("100"), 4, RoundingMode.HALF_UP);
             BigDecimal fator = BigDecimal.ONE.add(juros);
@@ -85,7 +84,6 @@ public class EmprestimoService {
 
             EmprestimoSolicitacao solicitacao = new EmprestimoSolicitacao(idCliente, valor, prazo, finalidade);
             solicitacao.setDataSolicitacao(LocalDateTime.now());
-            // Preenche sempre os dados calculados
             solicitacao.setTaxaJuros(taxaBase);
             solicitacao.setValorParcela(parcela);
             solicitacao.setNumeroParcelas(prazo);
@@ -102,7 +100,6 @@ public class EmprestimoService {
                 solicitacao.setValorParcela(parcelaAprovada);
                 solicitacao.setDataAprovacao(LocalDateTime.now());
 
-                // A LINHA creditarEmprestimo FOI REMOVIDA DAQUI
 
             } else if (score < 400 || comprometimento.compareTo(new BigDecimal("0.50")) > 0) {
                 solicitacao.setStatus(StatusEmprestimo.NEGADO);
@@ -112,7 +109,7 @@ public class EmprestimoService {
                 solicitacao.setMotivoNegacao("Perfil de crédito não atende aos critérios mínimos");
             }
 
-           // 1. Primeiro salvamos no banco para GERAR O ID
+           // 1. salva no banco para GERAR O ID
            emprestimoDAO.inserir(solicitacao);
            System.out.println("DEBUG: Solicitação ID após inserção = " + solicitacao.getIdSolicitacao());
 
@@ -121,7 +118,7 @@ public class EmprestimoService {
                solicitacao.setIdSolicitacao(emprestimoDAO.buscarUltimoIdPorCliente(idCliente));
            }
 
-           // 2. Agora, com a solicitação salva e com um ID gerado, creditamos o valor se for aprovado
+           // 2. salva e com um ID gerado, credita o valor se for aprovado
            if (solicitacao.getStatus() == StatusEmprestimo.APROVADO) {
                creditarEmprestimo(idCliente, valor, solicitacao);
            }

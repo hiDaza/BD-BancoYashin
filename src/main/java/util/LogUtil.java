@@ -21,7 +21,6 @@ public class LogUtil {
             log.setIdCliente(idCliente);
             log.setAcao(acao);
             log.setDescricao(descricao);
-            // ipOrigem pode ser obtido da requisição ou deixar null
             log.setIpOrigem("127.0.0.1");
             logDAO.inserir(log);
         } catch (Exception e) {

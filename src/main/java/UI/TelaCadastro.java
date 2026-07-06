@@ -22,7 +22,7 @@ public class TelaCadastro extends JFrame {
     private JTextField txtDocumento, txtNome, txtEmail, txtTelefone, txtEndereco;
     private JPasswordField txtSenha;
     private JComboBox<String> cmbTipoConta;
-    private JComboBox<String> cmbAgencia;  // <--- declarado como atributo
+    private JComboBox<String> cmbAgencia;  
 
     // Campos PF
     private JTextField txtRg, txtDataNascimento;

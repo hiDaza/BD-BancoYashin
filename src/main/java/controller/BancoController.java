@@ -49,12 +49,12 @@ public class BancoController {
     private NotificacaoService notificacaoService = new NotificacaoService();
     private RelatorioService relatorioService = new RelatorioService();
 
-    // === Autenticação ===
+    //  Autenticação 
     public Cliente login(String cpfCnpj, String senha) throws Exception {
         return authService.login(cpfCnpj, senha, "127.0.0.1");
     }
 
-    // === Cliente ===
+    //  Cliente 
     public Cliente abrirContaPF(String cpf, String nome, String email, String telefone,
                                 String endereco, String senha, String rg, LocalDate dataNascimento,
                                 String tipoConta, String agencia) throws Exception {
@@ -78,7 +78,7 @@ public class BancoController {
         clienteService.atualizarDados(cliente);
     }
 
-    // === Conta ===
+    //  Conta 
     
     public Conta abrirNovaConta(int idCliente, String tipoConta, String agencia) throws Exception {
         return contaService.abrirNovaConta(idCliente, tipoConta, agencia);
@@ -105,7 +105,7 @@ public class BancoController {
         contaService.encerrarConta(idConta, idContaDestino);
     }
 
-    // === Transferências ===
+    //  Transferências 
     public void transferenciaInterna(int idOrigem, int idDestino, BigDecimal valor) throws Exception {
         transferenciaService.transferenciaInterna(idOrigem, idDestino, valor);
     }
@@ -128,7 +128,7 @@ public class BancoController {
         return transferenciaService.listarAgendamentosPorCliente(idCliente);
     }
 
-    // === Pagamentos ===
+    //  Pagamentos 
     public void pagarConta(int idConta, String linhaDigitavel, BigDecimal valor) throws Exception {
         pagamentoService.pagarConta(idConta, linhaDigitavel, valor);
     }
@@ -141,7 +141,7 @@ public class BancoController {
         pagamentoService.pagarPIXQRCode(idConta, qrCode, valor);
     }
 
-    // === Empréstimos ===
+    //  Empréstimos 
     public EmprestimoSolicitacao simularEmprestimo(int idCliente, BigDecimal valor, int prazo) throws Exception {
         return emprestimoService.simularEmprestimo(idCliente, valor, prazo);
     }
@@ -154,7 +154,7 @@ public class BancoController {
         return emprestimoService.listarPorCliente(idCliente);
     }
 
-    // === Cartões ===
+    //  Cartões 
     public CartaoCredito solicitarCartaoPessoal(int idConta, BigDecimal limite, String bandeira) throws Exception {
         return cartaoService.solicitarCartaoPessoal(idConta, limite, bandeira);
     }
@@ -191,7 +191,7 @@ public class BancoController {
         return cartaoService.buscarFaturaPorId(idFatura);
     }
 
-    // === Boletos (PJ) ===
+    //  Boletos (PJ) 
     public BoletoEmitido emitirBoleto(int idClientePj, BigDecimal valor, LocalDate vencimento,
                                       BigDecimal juros, BigDecimal multa, String instrucoes) throws Exception {
         return boletoService.emitirBoleto(idClientePj, valor, vencimento, juros, multa, instrucoes);
@@ -205,7 +205,7 @@ public class BancoController {
         return boletoService.listarPorCliente(idClientePj);
     }
 
-    // === Pagamentos em Lote (PJ) ===
+    //  Pagamentos em Lote (PJ) 
     public int criarLote(int idClientePj, String tipo, LocalDate dataExecucao) throws Exception {
         return pagamentoLoteService.criarLote(idClientePj, tipo, dataExecucao);
     }
@@ -226,7 +226,7 @@ public class BancoController {
         return pagamentoLoteService.listarItensLote(idLote);
     }
 
-    // === Relatórios ===
+    //  Relatórios 
     public String gerarComprovante(int idTransacao) throws Exception {
         return relatorioService.gerarComprovante(idTransacao);
     }
@@ -235,7 +235,7 @@ public class BancoController {
         return relatorioService.gerarExtratoPDF(idConta, inicio, fim);
     }
 
-    // === Notificações ===
+    //  Notificações 
     public void configurarAlertas(PreferenciaAlertas pref) throws Exception {
         notificacaoService.configurarPreferencias(pref);
     }

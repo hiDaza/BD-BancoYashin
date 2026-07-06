@@ -90,7 +90,6 @@ public class CartaoService {
     }
     
     public List<CartaoCredito> listarCartoesPorCliente(int idCliente) throws SQLException {
-        // Buscar todas as contas do cliente e depois os cartões
         List<CartaoCredito> todos = new ArrayList<>();
         for (Conta c : new ContaService().buscarPorCliente(idCliente)) {
             todos.addAll(cartaoDAO.listarPorConta(c.getIdConta()));
@@ -150,7 +149,7 @@ public class CartaoService {
             faturaDAO.inserir(fatura);
         }
 
-        // Atualizar fatura (total)
+        // Atualizar fatura
         fatura.setValorTotal(fatura.getValorTotal().add(valor));
         faturaDAO.atualizar(fatura);
 

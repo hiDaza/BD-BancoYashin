@@ -164,7 +164,7 @@ public class TransferenciaService {
                 "Tipo: " + tipo + " valor: " + valor + " data: " + dataAgendada);
     }
 
-    // Método para processar agendamentos (executado por scheduler)
+    // Método para processar agendamentos
     public void processarAgendamentos(LocalDate data) throws Exception {
         List<AgendamentoTransferencia> agendamentos = agendamentoDAO.listarPendentesPorData(data);
         for (AgendamentoTransferencia ag : agendamentos) {
@@ -177,7 +177,7 @@ public class TransferenciaService {
                 }
 
                 if ("TED".equals(ag.getTipoTransferencia())) {
-                    // Extrair dados do JSON e chamar TED (simplificado)
+                    
                     transferenciaTED(ag.getIdContaOrigem(), "001", "0001", "12345", "12345678901", 
                                      "Beneficiario", ag.getValor());
                 } else {

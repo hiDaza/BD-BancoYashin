@@ -30,7 +30,6 @@ public class PagamentoLoteService {
     private ContaDAO contaDAO = new ContaDAO();
     private TransacaoDAO transacaoDAO = new TransacaoDAO();
 
-    // Estrutura interna para itens (simula uma tabela de itens)
     private Map<Integer, List<ItemLote>> itensPorLote = new HashMap<>();
 
     private static class ItemLote {

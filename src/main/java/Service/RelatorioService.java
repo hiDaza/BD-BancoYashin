@@ -68,10 +68,11 @@ public class RelatorioService {
         return sb.toString();
     }
 
+    
+    // POR ENQUANTO NAO ESTOU USANDO
     public void imprimirComprovante(int idTransacao) throws Exception {
         String comprovante = gerarComprovante(idTransacao);
         System.out.println(comprovante);
-        // Em produção, salvaria em arquivo ou enviaria por e-mail
         LogUtil.registrarLog(null, "COMPROVANTE_EMITIDO", "Transação: " + idTransacao);
     }
 }

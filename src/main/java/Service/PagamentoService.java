@@ -32,7 +32,6 @@ public class PagamentoService {
         validarContaAtiva(origem);
         validarSaldo(origem, valor);
 
-        // Simula interpretação da linha digitável
         if (linhaDigitavel == null || linhaDigitavel.length() < 10) {
             throw new Exception("Linha digitável inválida");
         }

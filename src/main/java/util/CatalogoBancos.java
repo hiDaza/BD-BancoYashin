@@ -35,7 +35,6 @@ public class CatalogoBancos {
         // Adicione mais bancos conforme necessário
     }
 
-    // Agências do próprio Banco Yashin (para cadastro de clientes)
     private static final List<String> AGENCIAS_YASHIN = Arrays.asList("0001", "0002", "0003", "0004", "0005", "0006", "0007", "0008", "0009", "0010", "0011", "0012");
 
     public static List<String> getAgenciasYashin() {

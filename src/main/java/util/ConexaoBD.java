@@ -15,14 +15,18 @@ import java.sql.SQLException;
 public class ConexaoBD {
     private static final String URL = "jdbc:mysql://localhost:3306/yashin_bank?useSSL=false&serverTimezone=UTC";
     private static final String USER = "root";
+    private static final String PASSWORD = "root";
 
-    public static Connection getConnection() throws SQLException {
+    static {
         try {
             Class.forName("com.mysql.cj.jdbc.Driver");
+            DatabaseInitializer.inicializar();
         } catch (ClassNotFoundException e) {
-            throw new SQLException("Driver JDBC não encontrado.", e);
+            throw new RuntimeException("Driver JDBC não encontrado.", e);
         }
-        // Se você tem uma classe Static que retorna a senha
-        return DriverManager.getConnection(URL, USER, "root");
+    }
+
+    public static Connection getConnection() throws SQLException {
+        return DriverManager.getConnection(URL, USER, PASSWORD);
     }
 }
